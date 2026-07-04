@@ -1,8 +1,10 @@
-import { Controller, Get, Param, Headers, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../database/prisma.service';
 import { ForensicsService, ForensicReport } from '../audit/forensics.service';
 
 @Controller('api/v1/compliance/incidents')
+@UseGuards(JwtAuthGuard)
 export class IncidentsController {
   constructor(
     private readonly prisma: PrismaService,
@@ -13,10 +15,9 @@ export class IncidentsController {
    * Lists all security incidents logged for the tenant.
    */
   @Get()
-  async getIncidents(@Headers('x-tenant-id') tenantIdHeader?: string) {
-    const tenantId = tenantIdHeader || 'default-dev-tenant-uuid';
+  async getIncidents(@Req() req: any) {
     return this.prisma.incident.findMany({
-      where: { tenantId },
+      where: { tenantId: req.user.tenantId },
       orderBy: { openedAt: 'desc' },
     });
   }
@@ -27,9 +28,8 @@ export class IncidentsController {
   @Get(':id/forensics')
   async getForensicReport(
     @Param('id') id: string,
-    @Headers('x-tenant-id') tenantIdHeader?: string,
+    @Req() req: any,
   ): Promise<ForensicReport> {
-    const tenantId = tenantIdHeader || 'default-dev-tenant-uuid';
-    return this.forensicsService.generateAttributionReport(id, tenantId);
+    return this.forensicsService.generateAttributionReport(id, req.user.tenantId);
   }
 }

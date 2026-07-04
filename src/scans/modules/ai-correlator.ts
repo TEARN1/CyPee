@@ -1,7 +1,12 @@
 import { PrismaService } from '../../database/prisma.service';
-import { Severity } from '../types';
 
-export class AICorrelator {
+/**
+ * Rule-based finding correlator. This is NOT an AI/ML component — it cross-
+ * references findings from other modules against a small set of hardcoded
+ * attack-chain patterns (e.g. "secrets + unauthenticated routes"). Labeled
+ * honestly here so it's never mistaken for a learned/inferred correlation.
+ */
+export class FindingCorrelator {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -15,7 +20,7 @@ export class AICorrelator {
     });
 
     const hasSecrets = findings.some(f => f.module === 'SECRET_EXCAVATOR' || f.title.includes('Secret') || f.title.includes('Key'));
-    const hasUnprotectedRoutes = findings.some(f => f.module === 'API_FUZZER' || f.title.includes('Exposed API'));
+    const hasUnprotectedRoutes = findings.some(f => f.module === 'AUTH_GUARD_AUDIT' || f.title.includes('Exposed API'));
     const hasSSRF = findings.some(f => f.title.includes('SSRF') || f.title.includes('axios'));
 
     // Attack Chain 1: Secrets + Unprotected API Routes = Critical Attack Vector
@@ -24,10 +29,10 @@ export class AICorrelator {
         data: {
           scanId,
           tenantId,
-          module: 'AI_CORRELATOR',
+          module: 'FINDING_CORRELATOR',
           severity: 'CRITICAL',
           title: 'Cascading Attack Chain: Exposed Credentials via Public APIs',
-          description: 'AI Correlator mapped a critical chain: Hardcoded secret credentials exist inside files that can be queried directly via unauthenticated public endpoints. Attackers can exploit these public endpoints to trigger system leaks and retrieve database passwords.',
+          description: 'Rule-based correlation mapped a critical chain: hardcoded secret credentials exist inside files that can be queried directly via unauthenticated public endpoints. Attackers can exploit these public endpoints to trigger system leaks and retrieve database passwords.',
           cvssScore: 9.9,
           pesScore: 99.0,
           cweId: 'CWE-200', // Information Exposure
@@ -45,7 +50,7 @@ export class AICorrelator {
           status: 'OPEN',
           evidence: JSON.stringify({
             scanId,
-            chainVulnerabilities: ['SECRET_EXCAVATOR', 'API_FUZZER'],
+            chainVulnerabilities: ['SECRET_EXCAVATOR', 'AUTH_GUARD_AUDIT'],
             desc: 'Cascading Attack Chain identified: Exposed credentials inside unauthenticated API files.',
           }),
         },
@@ -58,10 +63,10 @@ export class AICorrelator {
         data: {
           scanId,
           tenantId,
-          module: 'AI_CORRELATOR',
+          module: 'FINDING_CORRELATOR',
           severity: 'CRITICAL',
           title: 'Cascading Attack Chain: Cloud Metadata Exfiltration via SSRF',
-          description: 'AI Correlator mapped a critical chain: SSRF vulnerabilities in axios combined with stored AWS keys allow attackers to forge requests to the AWS EC2 Metadata service (http://169.254.169.254) to exfiltrate IAM role credentials.',
+          description: 'Rule-based correlation mapped a critical chain: SSRF vulnerabilities in axios combined with stored AWS keys allow attackers to forge requests to the AWS EC2 Metadata service (http://169.254.169.254) to exfiltrate IAM role credentials.',
           cvssScore: 9.9,
           pesScore: 99.0,
           cweId: 'CWE-918', // SSRF

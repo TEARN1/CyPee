@@ -12,16 +12,15 @@ async function main() {
     take: 5,
   });
 
-  console.log(`\nFound ${certs.length} ZK certificates in database:`);
+  console.log(`\nFound ${certs.length} heuristic compliance mappings in database:`);
   certs.forEach((c) => {
     const proof = JSON.parse(c.proof);
     const pub = JSON.parse(c.publicInput);
-    console.log(`\n--- Certificate for standard: ${c.standard} ---`);
+    console.log(`\n--- Heuristic mapping for standard: ${c.standard} ---`);
     console.log(`- Status: ${proof.status}`);
     console.log(`- Details: ${proof.details}`);
-    console.log(`- ZK Prover ID: ${proof.proverId}`);
+    console.log(`- Disclaimer: ${proof.disclaimer}`);
     console.log(`- Public inputs:`, pub);
-    console.log(`- Cryptographic ZK Proof signature:\n  ${proof.proofSignature.substring(0, 50)}...`);
   });
 }
 

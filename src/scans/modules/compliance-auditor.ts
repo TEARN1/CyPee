@@ -12,8 +12,11 @@ export class ComplianceAuditor {
 
   /**
    * Evaluates findings of a scan and maps them to key global compliance standards.
-   * Generates a mock zero-knowledge certificate payload that states the system is verified
-   * against requirements (e.g. no critical findings found).
+   *
+   * This is a heuristic pass/fail check based on finding severity counts — it is NOT
+   * a cryptographic proof, audit, or certification. It must never be represented to
+   * users as a SOC2/PCI/ISO27001/NIST/GDPR certificate; it is a starting point for a
+   * human auditor, nothing more.
    */
   async audit(scanId: string, tenantId: string): Promise<void> {
     const findings = await this.prisma.finding.findMany({
@@ -29,37 +32,30 @@ export class ComplianceAuditor {
 
     for (const std of standards) {
       let passed = true;
-      let proofMsg = '';
+      let detailMsg = '';
 
       if (std === 'PCI' && (hasCritical || hasHigh)) {
         passed = false;
-        proofMsg = 'System failed Requirement 6.2 (Technical Advisory remediation of high risk vulnerabilities).';
+        detailMsg = 'Heuristic check against Requirement 6.2 (remediation of high-risk vulnerabilities) found unresolved high/critical findings.';
       } else if (std === 'SOC2' && hasCritical) {
         passed = false;
-        proofMsg = 'System failed Trust Services Criteria CC7.1 (Vulnerability detection limits exceeded).';
+        detailMsg = 'Heuristic check against Trust Services Criteria CC7.1 found unresolved critical findings.';
       } else {
-        proofMsg = `Verified compliant for ${std} scan audit bounds.`;
+        detailMsg = `No findings above the threshold configured for this heuristic ${std} check.`;
       }
-
-      // Generate a mock ZK proof payload:
-      // In a production setup, this would be computed by a prover (e.g. circom/snarkjs)
-      // proving that: H(findings_list) is valid AND no findings are > MEDIUM severity,
-      // without exposing the source filenames or raw credentials.
-      const zkProof = {
-        proverId: 'shield-zk-snark-prover-v1',
-        verificationKeyHash: '0x9d4e5f67a8b9c0d1e2f3a4b5c6d7e8f9',
-        proofSignature: Buffer.from(`zk-proof-${std}-${scanId}-${passed ? 'pass' : 'fail'}-${Date.now()}`).toString('base64'),
-        timestamp: new Date().toISOString(),
-        status: passed ? 'PASSED' : 'FAILED',
-        details: proofMsg,
-      };
 
       await this.prisma.zKCertificate.create({
         data: {
           scanId,
           tenantId,
           standard: std,
-          proof: JSON.stringify(zkProof),
+          proof: JSON.stringify({
+            kind: 'heuristic-compliance-mapping',
+            disclaimer: 'Not a cryptographic proof, audit, or certification. Automated heuristic only.',
+            status: passed ? 'PASSED' : 'FAILED',
+            details: detailMsg,
+            generatedAt: new Date().toISOString(),
+          }),
           publicInput: JSON.stringify({
             scanId,
             findingsCount: findings.length,

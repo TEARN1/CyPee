@@ -8,20 +8,18 @@ export class FindingsRepository {
   
   constructor(private readonly prisma: PrismaService) {}
 
-  public async save(finding: IEnrichedSastFinding): Promise<void> {
+  public async save(finding: IEnrichedSastFinding, tenantId: string): Promise<void> {
     try {
-      const defaultTenantId = 'default-dev-tenant-uuid';
-      
-      // Get the latest scan or create a default dev scan reference
+      // Get the latest scan or create a default scan reference for manually-ingested findings
       let latestScan = await this.prisma.scan.findFirst({
-        where: { tenantId: defaultTenantId },
+        where: { tenantId },
         orderBy: { startedAt: 'desc' },
       });
 
       if (!latestScan) {
         latestScan = await this.prisma.scan.create({
           data: {
-            tenantId: defaultTenantId,
+            tenantId,
             state: 'COMPLETE',
           },
         });
@@ -30,7 +28,7 @@ export class FindingsRepository {
       // Check if duplicate exists
       const duplicate = await this.prisma.finding.findFirst({
         where: {
-          tenantId: defaultTenantId,
+          tenantId,
           scanId: latestScan.id,
           filePath: finding.filePath,
           lineNumber: finding.lineNumber,
@@ -42,7 +40,7 @@ export class FindingsRepository {
         await this.prisma.finding.create({
           data: {
             scanId: latestScan.id,
-            tenantId: defaultTenantId,
+            tenantId,
             module: 'MANUAL_INGESTION',
             severity: finding.severity,
             title: finding.ruleId,
@@ -60,11 +58,10 @@ export class FindingsRepository {
     }
   }
 
-  public async findAll(): Promise<IEnrichedSastFinding[]> {
+  public async findAll(tenantId: string): Promise<IEnrichedSastFinding[]> {
     try {
-      const defaultTenantId = 'default-dev-tenant-uuid';
       const dbFindings = await this.prisma.finding.findMany({
-        where: { tenantId: defaultTenantId },
+        where: { tenantId },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -84,11 +81,10 @@ export class FindingsRepository {
     }
   }
 
-  public async clear(): Promise<void> {
+  public async clear(tenantId: string): Promise<void> {
     try {
-      const defaultTenantId = 'default-dev-tenant-uuid';
       await this.prisma.finding.deleteMany({
-        where: { tenantId: defaultTenantId },
+        where: { tenantId },
       });
     } catch (err) {
       this.logger.error('Failed to clear findings from database:', err);

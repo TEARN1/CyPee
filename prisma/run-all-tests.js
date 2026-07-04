@@ -8,7 +8,8 @@ const testScripts = [
   { name: 'Auto-Remediation & Git Integration (test-auto-fix.js)', file: 'test-auto-fix.js' },
   { name: 'Honeytoken Deception Fabric (test-deception.js)', file: 'test-deception.js' },
   { name: 'System Status Health Diagnostics (test-health.js)', file: 'test-health.js' },
-  { name: 'Diamond Model Forensic Attribution (test-forensics.js)', file: 'test-forensics.js' }
+  { name: 'Diamond Model Forensic Attribution (test-forensics.js)', file: 'test-forensics.js' },
+  { name: 'Security Hardening & Concurrency Control (test-hardening.js)', file: 'test-hardening.js' }
 ];
 
 function runScript(script) {

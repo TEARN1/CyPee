@@ -1,9 +1,11 @@
-import { Controller, Get, Post, HttpCode, HttpStatus, Param, Headers, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, HttpCode, HttpStatus, Param, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FindingsRepository } from '../remediation/findings.repository';
 import { AutoFixService, AutoFixResult } from '../remediation/auto-fix.service';
 import { IEnrichedSastFinding } from './interfaces/finding.interface';
 
 @Controller('api/v1/compliance/findings')
+@UseGuards(JwtAuthGuard)
 export class FindingsController {
   constructor(
     private readonly findingsRepository: FindingsRepository,
@@ -11,14 +13,14 @@ export class FindingsController {
   ) {}
 
   @Get()
-  public async getFindings(): Promise<IEnrichedSastFinding[]> {
-    return this.findingsRepository.findAll();
+  public async getFindings(@Req() req: any): Promise<IEnrichedSastFinding[]> {
+    return this.findingsRepository.findAll(req.user.tenantId);
   }
 
   @Post('clear')
   @HttpCode(HttpStatus.OK)
-  public async clearFindings(): Promise<{ status: string; message: string }> {
-    await this.findingsRepository.clear();
+  public async clearFindings(@Req() req: any): Promise<{ status: string; message: string }> {
+    await this.findingsRepository.clear(req.user.tenantId);
     return { status: 'success', message: 'Database findings cleared.' };
   }
 
@@ -26,10 +28,8 @@ export class FindingsController {
   @HttpCode(HttpStatus.OK)
   public async applyFindingFix(
     @Param('id') id: string,
-    @Headers('x-tenant-id') tenantIdHeader?: string,
+    @Req() req: any,
   ): Promise<AutoFixResult> {
-    // Fallback to default-dev-tenant-uuid for local development / testing
-    const tenantId = tenantIdHeader || 'default-dev-tenant-uuid';
-    return this.autoFixService.applyFix(id, tenantId);
+    return this.autoFixService.applyFix(id, req.user.tenantId);
   }
 }

@@ -4,7 +4,10 @@ import { Provider } from '../types';
 
 export class CreateScanDto {
   @ApiProperty({ example: 'https://github.com/org/repo', description: 'Repository URL to scan' })
-  @IsUrl({}, { message: 'repositoryUrl must be a valid URL' })
+  @IsUrl(
+    { protocols: ['http', 'https'], require_protocol: true },
+    { message: 'repositoryUrl must be a valid http(s) URL' },
+  )
   repositoryUrl: string;
 
   @ApiPropertyOptional({ example: 'my-project', description: 'Friendly repository name' })

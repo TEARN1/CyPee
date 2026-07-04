@@ -94,12 +94,20 @@ async function verifyDatabaseEntries() {
 async function run() {
   console.log('\n🍯 STARTING HONEYTOKEN DECEPTION FABRIC TESTS 🍯');
 
-  // Test 1: Generate a decoy Honeytoken
+  const email = `deception-test-${Date.now()}@testcorp.com`;
+  const password = 'DeceptionTest2025!';
+  const regRes = await request('/api/v1/auth/register', 'POST', { email, password, tenantName: 'Deception Test Corp' });
+  if (regRes.status !== 201) throw new Error('Setup registration failed');
+  const loginRes = await request('/api/v1/auth/login', 'POST', { email, password });
+  if (loginRes.status !== 200 || !loginRes.body.token) throw new Error('Setup login failed');
+  const auth = { 'Authorization': `Bearer ${loginRes.body.token}` };
+
+  // Test 1: Generate a decoy Honeytoken (requires auth — creating tokens is an admin action)
   console.log('\n1. Creating a decoy honeytoken (AWS Access Key ID)...');
   const tokenRes = await request('/api/v1/deception/honeytoken', 'POST', {
     label: 'decoy-developers-env',
     type: 'AWS',
-  });
+  }, auth);
   console.log('Status Code:', tokenRes.status);
   console.log('Response Body:', tokenRes.body);
   if (tokenRes.status !== 201 || !tokenRes.body.token) throw new Error('Honeytoken generation failed!');

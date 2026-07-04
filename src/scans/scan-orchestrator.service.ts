@@ -1,18 +1,26 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { PrismaService } from '../database/prisma.service';
 import { ScanEventBus } from './scan-event-bus.service';
 import { AuditLogService } from '../audit/audit-log.service';
 import { assertValidTransition } from './scan-state.machine';
 import { ScanState, Severity } from './types';
 
+const execFileAsync = promisify(execFile);
+
 // Import real scanning engines
 import { SecretExcavator } from './modules/secret-excavator';
 import { IaCSecurity } from './modules/iac-security';
 import { CVEIntelligence } from './modules/cve-intelligence';
 import { SupplyChainIntegrity } from './modules/supply-chain';
-import { APIFuzzer } from './modules/api-fuzzer';
+import { AuthGuardAuditor } from './modules/api-fuzzer';
+import { SemgrepScanner } from './modules/semgrep-scanner';
 import { ComplianceAuditor } from './modules/compliance-auditor';
-import { AICorrelator } from './modules/ai-correlator';
+import { FindingCorrelator } from './modules/ai-correlator';
 
 @Injectable()
 export class ScanOrchestrator {
@@ -52,6 +60,7 @@ export class ScanOrchestrator {
    * state machine updates, and SSE events.
    */
   async run(scanId: string, tenantId: string, repositoryUrl: string): Promise<void> {
+    let workspacePath: string | null = null;
     try {
       this.logger.log(`Starting scan orchestrator for scan ${scanId}`);
 
@@ -60,9 +69,11 @@ export class ScanOrchestrator {
       this.eventBus.emit(scanId, {
         type: 'module_start',
         module: 'PROVISIONING',
-        message: 'Provisioning sandboxed analysis environment...',
+        message: 'Cloning target repository into an isolated workspace...',
       });
-      await this.sleep(1000);
+
+      workspacePath = await this.cloneRepository(scanId, repositoryUrl);
+      this.logger.log(`Scan ${scanId}: cloned ${repositoryUrl} into ${workspacePath}`);
 
       // 2. Transition: PROVISIONING -> SCANNING
       await this.transition(scanId, 'SCANNING', tenantId);
@@ -72,18 +83,17 @@ export class ScanOrchestrator {
       const iacSecurity = new IaCSecurity();
       const cveIntelligence = new CVEIntelligence();
       const supplyChain = new SupplyChainIntegrity();
-      const apiFuzzer = new APIFuzzer();
-
-      // Scan actual workspace files!
-      const workspacePath = process.cwd();
-      this.logger.log(`Scanning workspace path: ${workspacePath}`);
+      const authGuardAuditor = new AuthGuardAuditor();
+      const semgrepScanner = new SemgrepScanner();
+      const scanTargetPath = workspacePath;
 
       const modules = [
-        { name: 'SECRET_EXCAVATOR', runner: () => secretExcavator.scan(workspacePath), progress: 20 },
-        { name: 'IaC_SECURITY', runner: () => iacSecurity.scan(workspacePath), progress: 40 },
-        { name: 'CVE_INTELLIGENCE', runner: () => cveIntelligence.scan(workspacePath), progress: 60 },
-        { name: 'SUPPLY_CHAIN', runner: () => supplyChain.scan(workspacePath), progress: 80 },
-        { name: 'API_FUZZER', runner: () => apiFuzzer.scan(workspacePath), progress: 100 },
+        { name: 'SECRET_EXCAVATOR', runner: () => secretExcavator.scan(scanTargetPath), progress: 20 },
+        { name: 'IaC_SECURITY', runner: () => iacSecurity.scan(scanTargetPath), progress: 40 },
+        { name: 'CVE_INTELLIGENCE', runner: () => cveIntelligence.scan(scanTargetPath), progress: 60 },
+        { name: 'SUPPLY_CHAIN', runner: () => supplyChain.scan(scanTargetPath), progress: 80 },
+        { name: 'AUTH_GUARD_AUDIT', runner: () => authGuardAuditor.scan(scanTargetPath), progress: 90 },
+        { name: 'SEMGREP_SAST', runner: () => semgrepScanner.scan(scanTargetPath), progress: 100 },
       ];
 
       await Promise.all(
@@ -147,9 +157,9 @@ export class ScanOrchestrator {
       this.eventBus.emit(scanId, {
         type: 'module_start',
         module: 'RISK_CORRELATION',
-        message: 'Running AI Cascading Risk Correlator...',
+        message: 'Running rule-based cascading risk correlator...',
       });
-      const correlator = new AICorrelator(this.prisma);
+      const correlator = new FindingCorrelator(this.prisma);
       await correlator.correlate(scanId, tenantId);
       await this.sleep(1000);
 
@@ -158,7 +168,7 @@ export class ScanOrchestrator {
       this.eventBus.emit(scanId, {
         type: 'module_start',
         module: 'REPORT_GENERATION',
-        message: 'Generating signed compliance reports and ZK certificates...',
+        message: 'Generating heuristic compliance mapping reports...',
       });
       const auditor = new ComplianceAuditor(this.prisma);
       await auditor.audit(scanId, tenantId);
@@ -196,7 +206,36 @@ export class ScanOrchestrator {
         message: `Scan execution failed: ${error.message}`,
       });
       this.eventBus.complete(scanId);
+    } finally {
+      if (workspacePath) {
+        await fs.promises.rm(workspacePath, { recursive: true, force: true }).catch((err) => {
+          this.logger.warn(`Failed to clean up scan workspace ${workspacePath}: ${err.message}`);
+        });
+      }
     }
+  }
+
+  /**
+   * Clones the target repository into an isolated per-scan temp directory
+   * so scans operate on the customer's actual code, not this server's own
+   * source tree. The directory is removed in a finally block regardless of
+   * scan outcome.
+   */
+  private async cloneRepository(scanId: string, repositoryUrl: string): Promise<string> {
+    const workspacePath = path.join(os.tmpdir(), `shield-scan-${scanId}`);
+    await fs.promises.rm(workspacePath, { recursive: true, force: true }).catch(() => {});
+    await fs.promises.mkdir(workspacePath, { recursive: true });
+
+    try {
+      await execFileAsync('git', ['clone', '--depth', '50', '--', repositoryUrl, workspacePath], {
+        timeout: 3 * 60 * 1000,
+        maxBuffer: 20 * 1024 * 1024,
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to clone repository ${repositoryUrl}: ${error.message}`);
+    }
+
+    return workspacePath;
   }
 
   private sleep(ms: number): Promise<void> {

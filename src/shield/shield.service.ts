@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as geoip from 'geoip-lite';
 
 export interface RequestTelemetry {
   ip: string;
@@ -97,19 +98,17 @@ export class ShieldService {
   }
 
   /**
-   * Simulates a GeoIP lookup.
-   * Blocks access or raises warnings for disallowed geographic coordinates.
+   * Real GeoIP lookup via the offline MaxMind-derived geoip-lite database
+   * (bundled with the package, no external API calls or keys required).
+   * Blocks access for disallowed geographic origins.
    */
   auditGeoIp(ip: string): { country: string; allowed: boolean } {
-    // Local mock GeoIP database
     if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
       return { country: 'LOCALHOST', allowed: true };
     }
 
-    // Simple IP-to-country hashing mock
-    const sum = ip.split('.').reduce((a, b) => a + parseInt(b, 10), 0);
-    const countries = ['US', 'ZA', 'DE', 'KP', 'RU', 'CN', 'GB', 'FR'];
-    const country = countries[sum % countries.length];
+    const lookup = geoip.lookup(ip);
+    const country = lookup?.country || 'UNKNOWN';
 
     // Restrict high-risk areas from administrative/compliance uploads
     const blockedCountries = ['KP', 'RU'];

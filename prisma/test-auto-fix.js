@@ -68,47 +68,59 @@ function request(path, method, body, headers = {}) {
 async function run() {
   console.log('\n🔧 STARTING AUTO-REMEDIATION AUTO-FIX ENGINE TESTS 🔧');
 
+  const email = `auto-fix-test-${Date.now()}@testcorp.com`;
+  const password = 'AutoFixTest2025!';
+  const regRes = await request('/api/v1/auth/register', 'POST', { email, password, tenantName: 'Auto Fix Test Corp' });
+  if (regRes.status !== 201) throw new Error('Setup registration failed');
+  const loginRes = await request('/api/v1/auth/login', 'POST', { email, password });
+  if (loginRes.status !== 200 || !loginRes.body.token) throw new Error('Setup login failed');
+  const token = loginRes.body.token;
+  const auth = { 'Authorization': `Bearer ${token}` };
+
   // 1. Fetch current findings list
   console.log('\n1. Fetching active findings list from database...');
-  const listRes = await request('/api/v1/compliance/findings', 'GET', null);
+  const listRes = await request('/api/v1/compliance/findings', 'GET', null, auth);
   console.log('Status Code:', listRes.status);
-  
+
   if (listRes.status !== 200 || !Array.isArray(listRes.body)) {
     throw new Error('Failed to retrieve active findings list');
   }
 
   if (listRes.body.length === 0) {
     console.log('⚠️ Findings database is empty. Triggering a quick mock scan to populate...');
-    
-    // Trigger mock scan
+
+    // Trigger a scan and poll until findings show up (a real clone + semgrep
+    // scan of an external repo takes longer than a fixed short sleep allows)
     const scanRes = await request('/api/v1/scans', 'POST', {
       repositoryUrl: 'https://github.com/OWASP/WebGoat',
       repositoryName: 'WebGoat-Test',
-    });
-    
-    // Wait for the scan modules to complete db inserts
-    await new Promise(r => setTimeout(r, 6000));
-    
-    // Re-fetch findings list
-    const listRes2 = await request('/api/v1/compliance/findings', 'GET', null);
+    }, auth);
+
+    const deadline = Date.now() + 5 * 60 * 1000;
+    let listRes2 = { body: [] };
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 5000));
+      listRes2 = await request('/api/v1/compliance/findings', 'GET', null, auth);
+      if (Array.isArray(listRes2.body) && listRes2.body.length > 0) break;
+    }
     listRes.body = listRes2.body;
     listRes.status = listRes2.status;
   }
 
   console.log('First finding returned:', JSON.stringify(listRes.body[0], null, 2));
 
-  // Find a patchable finding (e.g. exposed port or security header or API endpoint)
-  const patchable = listRes.body.find(f => f.filePath && f.lineNumber && f.filePath.includes('docker-compose'));
-  if (!patchable) {
-    console.warn('⚠️ No patchable docker-compose finding found. Let\'s check for other patchable files.');
-  }
-
-  const targetFinding = patchable || listRes.body.find(f => f.filePath && f.lineNumber);
+  // Prefer a finding that matches one of auto-fix's known deterministic patterns
+  // (exposed docker-compose db port); if none exists in this scan's results,
+  // fall back to any patchable-looking finding and verify the HONEST "no
+  // automated fix available" response instead — both are valid outcomes to test.
+  const deterministicMatch = listRes.body.find(f =>
+    f.filePath && f.lineNumber && f.filePath.includes('docker-compose'),
+  );
+  const targetFinding = deterministicMatch || listRes.body.find(f => f.filePath && f.lineNumber);
   if (!targetFinding) {
-    throw new Error('No patchable findings containing file paths and line numbers found in database! Run a scan first.');
+    throw new Error('No findings containing file paths and line numbers found in database! Run a scan first.');
   }
 
-  // Map keys if the controller response mapping differs from database model
   const findingId = targetFinding.id || targetFinding.findingId;
   const title = targetFinding.title || targetFinding.ruleId;
 
@@ -117,6 +129,7 @@ async function run() {
   console.log(`- Title: ${title}`);
   console.log(`- File Path: ${targetFinding.filePath}`);
   console.log(`- Line Number: ${targetFinding.lineNumber}`);
+  console.log(`- Expecting a deterministic patch: ${!!deterministicMatch}`);
 
   if (!findingId) {
     throw new Error('Selected target finding ID is undefined!');
@@ -124,7 +137,7 @@ async function run() {
 
   // 2. Request auto-remediation fix
   console.log('\n2. Sending POST auto-fix request to backend...');
-  const fixRes = await request(`/api/v1/compliance/findings/${findingId}/fix`, 'POST', null);
+  const fixRes = await request(`/api/v1/compliance/findings/${findingId}/fix`, 'POST', null, auth);
   console.log('Status Code:', fixRes.status);
   console.log('Response Body:', fixRes.body);
 
@@ -132,23 +145,33 @@ async function run() {
     throw new Error('Remediation request returned non-200 code!');
   }
 
-  if (!fixRes.body.success) {
-    throw new Error(`Remediation patch failed: ${fixRes.body.message}`);
+  if (deterministicMatch) {
+    if (!fixRes.body.success || fixRes.body.method !== 'deterministic') {
+      throw new Error(`Expected a deterministic patch to succeed, got: ${JSON.stringify(fixRes.body)}`);
+    }
+
+    console.log('\n3. Validating returned Git payload details...');
+    console.log(`- Generated Branch: ${fixRes.body.branchName}`);
+    console.log(`- Git Diff Output:\n${fixRes.body.diff}`);
+
+    if (!fixRes.body.branchName.startsWith('shield/remediate-')) {
+      throw new Error('Remediation branch naming format incorrect!');
+    }
+    if (!fixRes.body.diff) {
+      throw new Error('Auto-fix did not return a valid Git diff!');
+    }
+    console.log('✅ Deterministic git diff contains edits.');
+  } else {
+    // No ANTHROPIC_API_KEY configured in this test environment, so a finding
+    // with no deterministic match must honestly report failure, not fake a fix.
+    if (fixRes.body.success !== false || fixRes.body.method !== 'none') {
+      throw new Error(`Expected an honest "no automated fix" response, got: ${JSON.stringify(fixRes.body)}`);
+    }
+    if (!fixRes.body.message.includes('No automated fix pattern available')) {
+      throw new Error(`Unexpected message for the no-fix-available case: ${fixRes.body.message}`);
+    }
+    console.log('✅ Correctly reported no automated fix available (no deterministic match, AI suggestions disabled).');
   }
-
-  console.log('\n3. Validating returned Git payload details...');
-  console.log(`- Generated Branch: ${fixRes.body.branchName}`);
-  console.log(`- Git Diff Output:\n${fixRes.body.diff}`);
-
-  if (!fixRes.body.branchName.startsWith('shield/remediate-')) {
-    throw new Error('Remediation branch naming format incorrect!');
-  }
-
-  if (!fixRes.body.diff) {
-    throw new Error('Auto-fix did not return a valid Git diff!');
-  }
-
-  console.log('✅ Git Diff contains edits.');
 
   console.log('\n🎉 ALL AUTO-REMEDIATION FIX TESTS PASSED SUCCESSFULLY! 🎉');
   process.exit(0);

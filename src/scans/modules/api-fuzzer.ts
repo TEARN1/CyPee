@@ -2,11 +2,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ScanFindingInput } from './secret-excavator';
 
-export class APIFuzzer {
+const ROUTE_DECORATOR = /^@(Get|Post|Put|Delete|Patch)\(/;
+const GUARD_DECORATOR = /@UseGuards\(/;
+const CLASS_DECLARATION = /^export\s+class\s+(\w+)/;
+
+/**
+ * Static auth-guard auditor for NestJS controllers. This does NOT fuzz
+ * (no requests are sent) — it statically checks, per route, whether a
+ * @UseGuards decorator applies via the class or the individual method.
+ */
+export class AuthGuardAuditor {
   async scan(dirPath: string): Promise<ScanFindingInput[]> {
     const findings: ScanFindingInput[] = [];
     await this.walkDirectory(dirPath, (filePath) => {
-      // Exclude dependency folders and logs
       if (filePath.includes('node_modules') || filePath.includes('.git') || filePath.includes('dist')) {
         return;
       }
@@ -17,9 +25,8 @@ export class APIFuzzer {
         const stats = fs.statSync(filePath);
         if (!stats.isFile()) return;
 
-        // Audit Controller files
         if (filename.endsWith('.controller.ts') || filename.endsWith('.controller.js')) {
-          this.auditController(filePath, findings);
+          this.auditController(filePath, dirPath, findings);
         }
       } catch {
         // Skip unreadable files
@@ -29,53 +36,36 @@ export class APIFuzzer {
     return findings;
   }
 
-  private auditController(filePath: string, findings: ScanFindingInput[]) {
+  private auditController(filePath: string, dirPath: string, findings: ScanFindingInput[]) {
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n');
-    const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+    const relPath = path.relative(dirPath, filePath).replace(/\\/g, '/');
 
-    let currentControllerClass = '';
-    let isGuarded = false;
+    if (relPath.includes('auth.controller.ts')) return; // login/register are naturally public
 
-    // First scan to check if the controller class has a global guard
-    const classRegex = /class\s+(\w+Controller)/;
-    const classMatch = classRegex.exec(content);
-    if (classMatch) {
-      currentControllerClass = classMatch[1];
-    }
-
-    // Check if controller has class-level UseGuards or specific auth checks
-    const classLevelGuardRegex = /@Controller\([\s\S]*?\)\s*@UseGuards\(/;
-    if (classLevelGuardRegex.test(content) || content.includes('@UseGuards(')) {
-      isGuarded = true;
-    }
+    const classLevelGuarded = this.isClassLevelGuarded(lines);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
-      // Check for exposed routes without authentication guards
-      if (line.startsWith('@Get(') || line.startsWith('@Post(') || line.startsWith('@Put(') || line.startsWith('@Delete(')) {
-        // Look up preceding decorators for guards, but if there are no @UseGuards annotations anywhere in this file, flag it
-        if (!isGuarded) {
-          // Exclude auth routes which are naturally public
-          if (!relPath.includes('auth.controller.ts')) {
-            findings.push({
-              title: 'Exposed API Endpoint Without Authentication Guard',
-              description: `Controller route "${line}" is missing authorization decorators or authentication guards (e.g. JwtAuthGuard).`,
-              severity: 'HIGH',
-              filePath: relPath,
-              lineNumber: i + 1,
-              cweId: 'CWE-306',
-              mitreId: 'T1592',
-              remediation: 'Apply `@UseGuards(JwtAuthGuard)` to the controller class or individual route methods to restrict access.',
-              cvssScore: 8.5,
-              pesScore: 85.0,
-            });
-          }
+      if (ROUTE_DECORATOR.test(line)) {
+        const methodGuarded = classLevelGuarded || this.hasPrecedingGuard(lines, i);
+        if (!methodGuarded) {
+          findings.push({
+            title: 'Exposed API Endpoint Without Authentication Guard',
+            description: `Route decorator "${line}" has no @UseGuards applied at the class or method level.`,
+            severity: 'HIGH',
+            filePath: relPath,
+            lineNumber: i + 1,
+            cweId: 'CWE-306',
+            mitreId: 'T1592',
+            remediation: 'Apply `@UseGuards(JwtAuthGuard)` to the controller class or this specific route method to restrict access.',
+            cvssScore: 8.5,
+            pesScore: 85.0,
+          });
         }
       }
 
-      // Check for vulnerable parameters in queries
       if (line.includes('executeRawUnsafe(') || line.includes('$executeRawUnsafe(')) {
         findings.push({
           title: 'Unparameterized Raw Database Query execution',
@@ -91,6 +81,38 @@ export class APIFuzzer {
         });
       }
     }
+  }
+
+  /** A @UseGuards decorator sitting directly above the class declaration
+   * (ignoring other class-level decorators like @Controller/@ApiTags in between)
+   * protects every route in the file. */
+  private isClassLevelGuarded(lines: string[]): boolean {
+    for (let i = 0; i < lines.length; i++) {
+      if (CLASS_DECLARATION.test(lines[i].trim())) {
+        for (let j = i - 1; j >= 0; j--) {
+          const prev = lines[j].trim();
+          if (prev === '') continue;
+          if (GUARD_DECORATOR.test(prev)) return true;
+          if (!prev.startsWith('@')) break; // hit non-decorator code, stop looking
+        }
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /** Looks upward from a route decorator line for a @UseGuards decorator
+   * stacked directly above it (decorators can appear in any order), stopping
+   * at the previous route decorator, blank line, or non-decorator code. */
+  private hasPrecedingGuard(lines: string[], routeLineIndex: number): boolean {
+    for (let j = routeLineIndex - 1; j >= 0; j--) {
+      const prev = lines[j].trim();
+      if (prev === '') break;
+      if (GUARD_DECORATOR.test(prev)) return true;
+      if (ROUTE_DECORATOR.test(prev)) break; // reached the previous route's decorator stack
+      if (!prev.startsWith('@')) break; // hit method signature/body of a prior route
+    }
+    return false;
   }
 
   private async walkDirectory(dir: string, callback: (filePath: string) => void): Promise<void> {

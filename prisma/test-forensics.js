@@ -68,19 +68,28 @@ function request(path, method, body, headers = {}) {
 async function run() {
   console.log('\n💎 STARTING DIAMOND MODEL FORENSIC ATTRIBUTION TESTS 💎');
 
-  // 1. Trigger a Honeytoken access trap to log a fresh incident
+  const email = `forensics-test-${Date.now()}@testcorp.com`;
+  const password = 'ForensicsTest2025!';
+  const regRes = await request('/api/v1/auth/register', 'POST', { email, password, tenantName: 'Forensics Test Corp' });
+  if (regRes.status !== 201) throw new Error('Setup registration failed');
+  const tenantId = regRes.body.tenantId;
+  const loginRes = await request('/api/v1/auth/login', 'POST', { email, password });
+  if (loginRes.status !== 200 || !loginRes.body.token) throw new Error('Setup login failed');
+  const auth = { 'Authorization': `Bearer ${loginRes.body.token}` };
+
+  // 1. Trigger a Honeytoken access trap to log a fresh incident (the trap endpoint
+  // is deliberately public, but it attributes the hit via x-tenant-id, so we tag
+  // it with our freshly-registered tenant to find it again below)
   console.log('\n1. Accessing Honeytoken decoy database backup trap...');
   const triggerRes = await request('/api/v1/admin/db-backup', 'GET', null, {
-    'x-tenant-id': 'default-dev-tenant-uuid',
+    'x-tenant-id': tenantId,
     'user-agent': 'Mozilla/5.0 Threat-Hunting-Verification-Script',
   });
   console.log('Trigger status:', triggerRes.status);
 
   // 2. Fetch incidents list
   console.log('\n2. Retrieving logged security incidents list...');
-  const listRes = await request('/api/v1/compliance/incidents', 'GET', null, {
-    'x-tenant-id': 'default-dev-tenant-uuid',
-  });
+  const listRes = await request('/api/v1/compliance/incidents', 'GET', null, auth);
   console.log('Incident list size:', listRes.body.length);
   if (listRes.status !== 200 || listRes.body.length === 0) {
     throw new Error('Failed to retrieve logged incidents!');
@@ -91,9 +100,7 @@ async function run() {
 
   // 3. Request forensics report
   console.log('\n3. Requesting Diamond Model Forensic Attribution Report...');
-  const reportRes = await request(`/api/v1/compliance/incidents/${latestIncident.id}/forensics`, 'GET', null, {
-    'x-tenant-id': 'default-dev-tenant-uuid',
-  });
+  const reportRes = await request(`/api/v1/compliance/incidents/${latestIncident.id}/forensics`, 'GET', null, auth);
   console.log('Status Code:', reportRes.status);
   console.log('Attribution Report:', JSON.stringify(reportRes.body, null, 2));
 

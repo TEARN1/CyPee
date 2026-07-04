@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TotpService } from './totp.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { getRequiredJwtSecret } from './jwt-secret.util';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'shield-super-secret-jwt-key-change-in-production-2025'),
+        secret: getRequiredJwtSecret(configService),
         signOptions: {
           expiresIn: configService.get<any>('JWT_EXPIRES_IN', '15m'),
         },

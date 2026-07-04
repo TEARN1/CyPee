@@ -92,7 +92,11 @@ export class SastProcessor extends WorkerHost {
    * Calls the asynchronous repository to store the finding in dev.db.
    */
   private async saveFindingToDatabase(finding: IEnrichedSastFinding): Promise<void> {
-    await this.findingsRepository.save(finding);
+    // This machine-to-machine upload pathway (Ed25519-signed CI report upload)
+    // has no tenant/user session to derive a tenant from yet, unlike the JWT-
+    // authenticated endpoints. Left pinned to the dev tenant as a known,
+    // explicit gap rather than silently baked into the repository layer.
+    await this.findingsRepository.save(finding, 'default-dev-tenant-uuid');
     this.logger.debug(
       `[DATABASE SAVE] Persisted vulnerability: [${finding.severity}] ${finding.ruleId} at ${finding.filePath}:${finding.lineNumber}`,
     );

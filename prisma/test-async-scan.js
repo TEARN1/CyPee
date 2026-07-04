@@ -65,7 +65,7 @@ function request(path, method, body, extraHeaders = {}) {
   });
 }
 
-function listenToSse(scanId, powChallenge = null, powNonce = null) {
+function listenToSse(scanId, token, powChallenge = null, powNonce = null) {
   console.log(`\nConnecting to SSE Telemetry stream for scan: ${scanId}...`);
   const sseOptions = {
     hostname: 'localhost',
@@ -73,6 +73,7 @@ function listenToSse(scanId, powChallenge = null, powNonce = null) {
     path: `/api/v1/scans/${scanId}/stream`,
     method: 'GET',
     headers: {
+      'Authorization': `Bearer ${token}`,
       ...(powChallenge ? { 'x-shield-pow-challenge': powChallenge } : {}),
       ...(powNonce ? { 'x-shield-pow-nonce': powNonce } : {}),
     }
@@ -80,12 +81,12 @@ function listenToSse(scanId, powChallenge = null, powNonce = null) {
 
   const sseReq = http.request(sseOptions, (res) => {
     console.log(`SSE Connection Status: ${res.statusCode} ${res.statusMessage}`);
-    
+
     const challenge = res.headers['x-shield-challenge'];
     if (res.statusCode === 400 && challenge) {
       console.log('SSE connection requested PoW. Solving...');
       const nonce = solveChallenge(challenge);
-      listenToSse(scanId, challenge, nonce);
+      listenToSse(scanId, token, challenge, nonce);
       return;
     }
 
@@ -116,18 +117,27 @@ function listenToSse(scanId, powChallenge = null, powNonce = null) {
 }
 
 async function run() {
+  const email = `async-scan-test-${Date.now()}@testcorp.com`;
+  const password = 'AsyncScanTest2025!';
+  const regRes = await request('/api/v1/auth/register', 'POST', { email, password, tenantName: 'Async Scan Test Corp' });
+  if (regRes.status !== 201) throw new Error('Setup registration failed');
+
+  const loginRes = await request('/api/v1/auth/login', 'POST', { email, password });
+  if (loginRes.status !== 200 || !loginRes.body.token) throw new Error('Setup login failed');
+  const token = loginRes.body.token;
+
   console.log('Sending async scan request...');
   const payload = {
     repositoryUrl: 'https://github.com/OWASP/WebGoat',
     repositoryName: 'WebGoat-Test',
   };
 
-  const res = await request('/api/v1/scans', 'POST', payload);
+  const res = await request('/api/v1/scans', 'POST', payload, { 'Authorization': `Bearer ${token}` });
   console.log(`Response Status: ${res.status}`);
   console.log('Scan Created:', JSON.stringify(res.body, null, 2));
 
   if (res.status === 201 && res.body.id) {
-    listenToSse(res.body.id);
+    listenToSse(res.body.id, token);
   } else {
     console.error('Scan creation failed!');
     process.exit(1);
