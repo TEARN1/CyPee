@@ -36,7 +36,7 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true }));
 
   // Serve static dashboard UI from frontend/dist build directory
-  app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
+  app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);

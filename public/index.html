@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAST Compliance & Remediation Dashboard</title>
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --panel-dark: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      
+      --color-critical: #ef4444;
+      --color-high: #f97316;
+      --color-medium: #eab308;
+      --color-low: #3b82f6;
+      --color-success: #10b981;
+      
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+      --font-sans: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #f8fafc, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #064e3b;
+      color: #34d399;
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid #059669;
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background-color: #34d399;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+      }
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 2rem;
+      height: calc(100vh - 10rem);
+    }
+
+    .card {
+      background-color: var(--panel-dark);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Left Panel: Findings List */
+    .findings-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding-right: 0.5rem;
+    }
+
+    .finding-item {
+      background-color: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .finding-item:hover {
+      border-color: #6366f1;
+      background-color: rgba(99, 102, 241, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .finding-item.active {
+      border-color: #a855f7;
+      background-color: rgba(168, 85, 247, 0.08);
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.2);
+    }
+
+    .finding-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .finding-rule {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .badge-critical { background-color: rgba(239, 68, 68, 0.2); color: var(--color-critical); border: 1px solid var(--color-critical); }
+    .badge-high { background-color: rgba(249, 115, 22, 0.2); color: var(--color-high); border: 1px solid var(--color-high); }
+    .badge-medium { background-color: rgba(234, 179, 8, 0.2); color: var(--color-medium); border: 1px solid var(--color-medium); }
+    .badge-low { background-color: rgba(59, 130, 246, 0.2); color: var(--color-low); border: 1px solid var(--color-low); }
+
+    .finding-path {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+
+    /* Right Panel: Remediation Guide Details */
+    .detail-view {
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding-right: 0.5rem;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+      gap: 1rem;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      opacity: 0.5;
+    }
+
+    .detail-header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1rem;
+    }
+
+    .detail-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .detail-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .risk-box {
+      background-color: rgba(15, 23, 42, 0.3);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid #38bdf8;
+      padding: 1rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.95rem;
+    }
+
+    /* Side-by-Side Code Compare */
+    .code-comparison {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .code-container {
+      background-color: #0b0f19;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .code-label {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .code-label-insecure {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+    }
+
+    .code-label-secure {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: #6ee7b7;
+    }
+
+    pre {
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      margin: 0;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-badge">🛡️ SHIELD</div>
+      <h1>SAST Ingestion & Remediation Portal</h1>
+    </div>
+    <div class="status-badge">
+      <div class="pulse"></div>
+      Server Active (In-Memory Queue)
+    </div>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- Left panel: Finding stream -->
+    <div class="card">
+      <div class="card-title">
+        Static Code Findings
+        <span style="font-size: 0.85rem; color: var(--text-muted);" id="finding-count">0 items loaded</span>
+      </div>
+      <ul class="findings-list" id="findings-list">
+        <!-- Findings dynamically injected here -->
+      </ul>
+    </div>
+
+    <!-- Right panel: Remediation details -->
+    <div class="card">
+      <div class="card-title">Remediation Guide</div>
+      <div class="detail-view" id="detail-view">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>Select a static analysis finding to display its corresponding risk and secure code remediation guides.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Local mock database matching our scan findings mapping
+    const sampleFindings = [
+      {
+        id: "f1",
+        filePath: "src/users/users.service.ts",
+        lineNumber: 42,
+        ruleId: "SQL_INJECTION",
+        severity: "CRITICAL",
+        title: "Unparameterized Database Queries (SQL Injection)",
+        risk: "Concatenating untrusted user input directly into database query strings allows attackers to manipulate the structure of the query. This can lead to unauthorized data retrieval, modifications, data deletion, or remote code execution.",
+        insecureCode: `// INSECURE: Direct concatenation of user input into raw query
+async getUserProfile(userId: string) {
+  const query = \`SELECT * FROM users WHERE id = '\${userId}'\`;
+  return this.db.query(query);
+}`,
+        secureCode: `// SECURE: Use parameterized queries/bind variables
+async getUserProfile(userId: string) {
+  const query = 'SELECT * FROM users WHERE id = $1';
+  return this.db.query(query, [userId]);
+}`
+      },
+      {
+        id: "f2",
+        filePath: "src/auth/auth.module.ts",
+        lineNumber: 15,
+        ruleId: "HARDCODED_SECRETS",
+        severity: "HIGH",
+        title: "Hardcoded Cryptographic Keys or Secrets",
+        risk: "Storing plaintext credentials, API keys, JWT secrets, or encryption keys in version-controlled source files exposes sensitive assets to unauthorized users. If the repository is compromised, these keys can be extracted and abused.",
+        insecureCode: `// INSECURE: Credential defined as a constant inside code
+const JWT_SECRET = 'super-secret-key-12345-never-share-this';
+
+@Module({
+  imports: [
+    JwtModule.register({ secret: JWT_SECRET }),
+  ],
+})
+export class AuthModule {}`,
+        secureCode: `// SECURE: Load secret keys from environment variables or a secure secret store
+import { ConfigService } from '@nestjs/config';
+
+@Module({
+  imports: [
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET'),
+      }),
+    }),
+  ],
+})
+export class AuthModule {}`
+      },
+      {
+        id: "f3",
+        filePath: "src/main.ts",
+        lineNumber: 8,
+        ruleId: "MISSING_SECURITY_HEADERS",
+        severity: "MEDIUM",
+        title: "Missing HTTP Security Headers",
+        risk: "Absence of fundamental HTTP security headers (like Content-Security-Policy, X-Frame-Options, X-Content-Type-Options) exposes clients to clickjacking, cross-site scripting (XSS), and MIME-type sniffing attacks.",
+        insecureCode: `// INSECURE: NestJS bootstrapped without registering security headers
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+}
+bootstrap();`,
+        secureCode: `// SECURE: Register Helmet middleware to automatically apply security headers
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import helmet from 'helmet';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  // Register Helmet middleware
+  app.use(helmet());
+  
+  await app.listen(3000);
+}
+bootstrap();`
+      }
+    ];
+
+    const findingsList = document.getElementById('findings-list');
+    const detailView = document.getElementById('detail-view');
+    const countLabel = document.getElementById('finding-count');
+
+    function loadFindings() {
+      findingsList.innerHTML = '';
+      countLabel.textContent = `${sampleFindings.length} items loaded`;
+
+      sampleFindings.forEach((finding) => {
+        const item = document.createElement('li');
+        item.className = 'finding-item';
+        item.dataset.id = finding.id;
+
+        item.innerHTML = `
+          <div class="finding-header">
+            <span class="finding-rule">${finding.ruleId}</span>
+            <span class="badge badge-${finding.severity.toLowerCase()}">${finding.severity}</span>
+          </div>
+          <div class="finding-path">${finding.filePath} : L${finding.lineNumber}</div>
+        `;
+
+        item.addEventListener('click', () => selectFinding(finding.id));
+        findingsList.appendChild(item);
+      });
+    }
+
+    function selectFinding(id) {
+      // Toggle active status in list
+      document.querySelectorAll('.finding-item').forEach((el) => {
+        el.classList.toggle('active', el.dataset.id === id);
+      });
+
+      const finding = sampleFindings.find(f => f.id === id);
+      if (!finding) return;
+
+      detailView.innerHTML = `
+        <div class="detail-header">
+          <div class="detail-title">${finding.title}</div>
+          <div class="detail-meta">
+            <span class="badge badge-${finding.severity.toLowerCase()}">${finding.severity}</span>
+            <span>File: <strong style="font-family: var(--font-mono);">${finding.filePath}</strong></span>
+            <span>Line: <strong>${finding.lineNumber}</strong></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-title">🛡️ Risk Explanation</div>
+          <div class="risk-box">${finding.risk}</div>
+        </div>
+
+        <div class="code-comparison">
+          <div class="code-container">
+            <div class="code-label code-label-insecure">🛑 Insecure Pattern</div>
+            <pre><code>${escapeHtml(finding.insecureCode)}</code></pre>
+          </div>
+          
+          <div class="code-container">
+            <div class="code-label code-label-secure">✅ Secure Correction</div>
+            <pre><code>${escapeHtml(finding.secureCode)}</code></pre>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Initialize list
+    loadFindings();
+    // Default select first item
+    if (sampleFindings.length > 0) {
+      selectFinding(sampleFindings[0].id);
+    }
+  </script>
+</body>
+</html>

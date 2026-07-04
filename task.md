@@ -1,0 +1,44 @@
+# Task List - NestJS SAST Orchestration Engine & React Frontend Dashboard
+
+- [x] Create project configuration files (`package.json`, `tsconfig.json`, `nest-cli.json`)
+- [x] Create main entry point and NestJS application setup (`src/main.ts`, `src/app.module.ts`)
+- [x] Implement the compliance ingestion controller and DTOs (`src/compliance/...`)
+- [x] Implement the remediation feedback service and templates (`src/remediation/...`)
+- [x] Implement the BullMQ queue and worker processor (`src/queue/...`)
+- [x] Write configuration utility/validation mock files or supporting files (Docker Compose for Redis, config template)
+- [x] Create verification samples and testing instructions (`findings-sample.json`, `test-ingestion.ps1`)
+- [x] Document prompt improvements for this type of backend architecture (`PROMPT_IMPROVEMENT.md`)
+- [x] Run typescript compiler dry-run / build verification to ensure no compiling errors
+- [x] Scaffold React Vite application in `./frontend`
+- [x] Install Tailwind CSS, PostCSS, Lucide React, and Monaco Editor dependencies
+- [x] Implement UI Components:
+  - [x] `Dropzone.tsx` (Unified Ingestion)
+  - [x] `LiveTelemetry.tsx` (SSE live scanner telemetry stream integration)
+  - [x] `VulnerabilityMatrix.tsx` (Interactive vulnerability list grouped by severity)
+  - [x] `RemediationPanel.tsx` (Side-by-side Monaco code editor with copy capability)
+  - [x] `MetricCards.tsx` (High-grade stats layout with SVG donut chart visualizer)
+- [x] Integrate React frontend with NestJS backend via static asset production build
+- [x] Verify compilation and end-to-end execution of full system
+- [x] Implement dynamic API Reference Portal with browser-side Ed25519 Key Generator
+- [x] Implement Rules & Compliance Catalog mapped to OWASP Top 10
+- [x] Implement CSV Export report download tool
+- [x] Implement Manual Vulnerability Submission form drawer
+- [x] Implement Database Cleardown API controller endpoint
+- [x] Configure CORS parameters for local Vite developer server requests
+- [x] Set up portable SQLite database with Prisma 7 and better-sqlite3 driver adapter
+- [x] Implement blockchain-style immutable SHA-256 Audit Log service
+- [x] Build asynchronous parallel ScanOrchestrator and calculate posture scores
+- [x] Set up real-time Server-Sent Events (SSE) telemetry endpoint
+- [x] Implement JWT RS256 authentication, session token hashing, and Google Authenticator TOTP MFA
+- [x] Build 5 static filesystem scanners: SecretExcavator, IaCSecurity, CVEIntelligence, SupplyChainIntegrity, and APIFuzzer
+- [x] Build cascading AI attack chain risk correlator (AICorrelator)
+- [x] Build compliance auditor mapping SOC2, PCI, ISO27001, NIST, and GDPR standards to ZKCertificates
+- [x] Build AI Defensive Shield (ShieldService, ShieldMiddleware) with Vector Firewall payload matcher, standard deviation bot timing detector, and custom Proof of Work (PoW) verification solver
+- [x] Build Auto-Remediation & Git Integration Engine (AutoFixService) with localized file line patching, custom branch checkout tracking, commit logs, and diff calculators
+- [x] Build Honeytoken Deception Fabric (DeceptionService, DeceptionController) with active AWS/DB decoys trapping attackers, generating Incidents, and appending compromised audit log links
+- [x] Build MITRE ATT&CK Mapping Service (MitreAttackService) cataloging tactics, groups, and remediations
+- [x] Build Federated Threat Sharing Mesh (FederatedDefenseService) incorporating anonymized SHA-256 indicator exchanges
+- [x] Build Health Diagnostics status portal (HealthController) auditing database, queue, and security modules
+- [x] Build Diamond Model DFIR Forensic Attribution Engine (ForensicsService, IncidentsController) parsing capabilities, threat actors, and verified ledger timelines
+- [x] Build Unified Verification Accreditation Suite (run-all-tests.js) testing all 7 modules sequentially
+- [x] Implement Frontend Client-Side PoW Challenge Solver (fetchWithPow in App.tsx) utilizing browser-native SubtleCrypto digests

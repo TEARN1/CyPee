@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "filePath": "src/users/users.service.ts",
+      "lineNumber": 42,
+      "ruleId": "SQL_INJECTION",
+      "severity": "CRITICAL",
+      "message": "Raw query string concatenation detected. Input userId is concatenated directly into SQL statement."
+    },
+    {
+      "filePath": "src/auth/auth.module.ts",
+      "lineNumber": 15,
+      "ruleId": "HARDCODED_SECRETS",
+      "severity": "HIGH",
+      "message": "Plaintext signature secret key assigned inline. Relocate credential to config variables."
+    },
+    {
+      "filePath": "src/main.ts",
+      "lineNumber": 8,
+      "ruleId": "MISSING_SECURITY_HEADERS",
+      "severity": "MEDIUM",
+      "message": "No helmet headers registered during application bootstrap."
+    },
+    {
+      "filePath": "src/utils/parser.ts",
+      "lineNumber": 104,
+      "ruleId": "GENERIC_COMPLIANCE_RULE",
+      "severity": "LOW",
+      "message": "A generic lint rule failure is reported for documentation completeness."
+    }
+  ]
+}

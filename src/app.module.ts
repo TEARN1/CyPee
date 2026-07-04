@@ -9,6 +9,7 @@ import { AuditModule } from './audit/audit.module';
 import { ScansModule } from './scans/scans.module';
 import { AuthModule } from './auth/auth.module';
 import { ShieldModule } from './shield/shield.module';
+import { DeceptionModule } from './deception/deception.module';
 import { ShieldMiddleware } from './shield/shield.middleware';
 import { SecurityHeadersMiddleware } from './compliance/middlewares/security-headers.middleware';
 
@@ -43,6 +44,7 @@ import { SecurityHeadersMiddleware } from './compliance/middlewares/security-hea
     RemediationModule,
     ScansModule,
     AuthModule,
+    DeceptionModule,
   ],
 })
 export class AppModule implements NestModule {

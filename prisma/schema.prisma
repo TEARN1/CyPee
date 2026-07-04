@@ -1,0 +1,205 @@
+// This is your Prisma schema file for local portable development
+// using SQLite so it runs anywhere without Docker or PG servers.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─────────────────────────────────────────────
+// TENANTS & USERS
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  plan      String   @default("FREE") // FREE | STARTER | PROFESSIONAL | ENTERPRISE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  repositories Repository[]
+  scans        Scan[]
+  findings     Finding[]
+  auditLogs    AuditLog[]
+  incidents    Incident[]
+  honeytokens  Honeytoken[]
+  zkCerts      ZKCertificate[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  role         String   @default("ENGINEER") // ADMIN | ENGINEER | VIEWER
+  mfaEnabled   Boolean  @default(false)
+  totpSecret   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions UserSession[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model UserSession {
+  id           String   @id @default(uuid())
+  userId       String
+  tokenHash    String   @unique
+  deviceInfo   String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// ─────────────────────────────────────────────
+// REPOSITORIES & SCANS
+// ─────────────────────────────────────────────
+
+model Repository {
+  id                String    @id @default(uuid())
+  tenantId          String
+  name              String
+  url               String
+  provider          String    @default("GITHUB") // GITHUB | GITLAB | BITBUCKET | OTHER
+  encryptedToken    String?
+  webhookSecret     String?
+  lastScannedAt     DateTime?
+  createdAt         DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scans  Scan[]
+
+  @@map("repositories")
+}
+
+model Scan {
+  id           String    @id @default(uuid())
+  tenantId     String
+  repositoryId String?
+  state        String    @default("AUTHORIZED") // AUTHORIZED | PROVISIONING | SCANNING | CORRELATING | REPORTING | COMPLETE | FAILED | ARCHIVED
+  postureScore Float?
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  commitHash   String?
+  triggeredBy  String    @default("MANUAL") // MANUAL | WEBHOOK | SCHEDULED
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  repository Repository? @relation(fields: [repositoryId], references: [id])
+  findings   Finding[]
+  zkCerts    ZKCertificate[]
+
+  @@map("scans")
+}
+
+// ─────────────────────────────────────────────
+// FINDINGS
+// ─────────────────────────────────────────────
+
+model Finding {
+  id          String   @id @default(uuid())
+  scanId      String
+  tenantId    String
+  module      String   // CVE_INTELLIGENCE | SECRET_EXCAVATOR | etc.
+  severity    String   // CRITICAL | HIGH | MEDIUM | LOW | INFO
+  title       String
+  description String
+  cvssScore   Float?
+  pesScore    Float?
+  cweId       String?
+  mitreId     String?
+  filePath    String?
+  lineNumber  Int?
+  remediation String?
+  cveId       String?
+  packageName String?
+  createdAt   DateTime @default(now())
+
+  scan   Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("findings")
+}
+
+// ─────────────────────────────────────────────
+// SECURITY & COMPLIANCE
+// ─────────────────────────────────────────────
+
+model ZKCertificate {
+  id           String   @id @default(uuid())
+  scanId       String
+  tenantId     String
+  standard     String   // SOC2 | PCI | ISO27001 | NIST | GDPR
+  proof        String
+  publicInput  String
+  issuedAt     DateTime @default(now())
+
+  scan   Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("zk_certificates")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String?
+  action       String
+  actorId      String?
+  resource     String
+  metadata     String   @default("{}") // SQLite stores JSON as string
+  previousHash String   @default("GENESIS")
+  hash         String   @unique
+  createdAt    DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+model Incident {
+  id        String   @id @default(uuid())
+  tenantId  String
+  type      String
+  severity  String   // CRITICAL | HIGH | MEDIUM | LOW | INFO
+  status    String   @default("OPEN") // OPEN | INVESTIGATING | CONTAINED | RESOLVED | CLOSED
+  evidence  String   @default("{}") // SQLite stores JSON as string
+  openedAt  DateTime @default(now())
+  closedAt  DateTime?
+  isLocked  Boolean  @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("incidents")
+}
+
+model Honeytoken {
+  id          String    @id @default(uuid())
+  tenantId    String
+  type        String    // AWS_KEY | DB_CONNECTION | JWT_SECRET | SSH_KEY | etc.
+  value       String
+  placement   String    // description of where deployed
+  zone        String    // 1..8
+  isActive    Boolean   @default(true)
+  deployedAt  DateTime  @default(now())
+  accessedAt  DateTime?
+  accessCount Int       @default(0)
+  accessIp    String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, value])
+  @@map("honeytokens")
+}
