@@ -120,15 +120,45 @@ export class AutoFixService {
       // 1. Read original content
       const content = fs.readFileSync(fullPath, 'utf8');
       const lines = content.split('\n');
-      const originalLine = lines[finding.lineNumber - 1];
+      
+      // 2. Locate line, accounting for potential shifting
+      let actualLineNumber = finding.lineNumber;
+      let originalLine = lines[actualLineNumber - 1] || '';
 
-      // 2. Resolve a replacement: try the known-safe deterministic patterns first,
+      const expectedPattern = this.getExpectedPatternForRule(finding.title);
+      if (expectedPattern && !expectedPattern.test(originalLine)) {
+        // Line shifted! Search neighborhood (±10 lines)
+        let found = false;
+        for (let offset = -10; offset <= 10; offset++) {
+          const target = actualLineNumber - 1 + offset;
+          if (target >= 0 && target < lines.length) {
+            if (expectedPattern.test(lines[target])) {
+              actualLineNumber = target + 1;
+              originalLine = lines[target];
+              found = true;
+              this.logger.log(`[SELF-HEALING] Shifted coordinate resolved: from line ${finding.lineNumber} to ${actualLineNumber}`);
+              break;
+            }
+          }
+        }
+        if (!found) {
+          return {
+            success: false,
+            branchName: '',
+            diff: '',
+            method: 'none',
+            message: `Remediation aborted: Coordinates shifted and target vulnerability signature could not be verified near line ${finding.lineNumber}.`,
+          };
+        }
+      }
+
+      // 3. Resolve a replacement: try the known-safe deterministic patterns first,
       // then fall back to an AI-suggested patch only if a key is configured.
       let replacement = this.resolveDeterministicReplacement(originalLine);
       let method: AutoFixResult['method'] = replacement ? 'deterministic' : 'none';
 
       if (!replacement && this.anthropic) {
-        replacement = await this.suggestAiReplacement(lines, finding.lineNumber, finding.title, finding.description);
+        replacement = await this.suggestAiReplacement(lines, actualLineNumber, finding.title, finding.description);
         if (replacement) method = 'ai-suggested';
       }
 
@@ -152,11 +182,11 @@ export class AutoFixService {
 
       execFileSync('git', ['checkout', '-b', branchName], { cwd: repoRoot, stdio: 'ignore' });
 
-      // 3. Write patch change to file
-      lines[finding.lineNumber - 1] = replacement;
+      // 4. Write patch change to file
+      lines[actualLineNumber - 1] = replacement;
       fs.writeFileSync(fullPath, lines.join('\n'), 'utf8');
 
-      // 4. Calculate diff
+      // 5. Calculate diff
       let diff = '';
       try {
         diff = execFileSync('git', ['diff', '--', relPath], { cwd: repoRoot, encoding: 'utf8' });
@@ -164,7 +194,7 @@ export class AutoFixService {
         // Diff generation fallback
       }
 
-      // 5. Commit the changes (local only — never pushed; this clone is deleted after this call)
+      // 6. Commit the changes (local only — never pushed; this clone is deleted after this call)
       try {
         execFileSync('git', ['add', '--', relPath], { cwd: repoRoot, stdio: 'ignore' });
         execFileSync(
@@ -178,7 +208,7 @@ export class AutoFixService {
 
       await this.auditLog.log(tenantId, 'AUTO_REMEDIATION_APPLIED', `finding:${findingId}`, {
         filePath: finding.filePath,
-        lineNumber: finding.lineNumber,
+        lineNumber: actualLineNumber,
         branchName,
         method,
       });
@@ -284,5 +314,25 @@ export class AutoFixService {
       this.logger.warn(`AI fix suggestion failed: ${error.message}`);
       return null;
     }
+  }
+
+  /**
+   * Resolves a verification pattern to check if the target line is the correct vulnerable line.
+   */
+  private getExpectedPatternForRule(ruleName: string): RegExp | null {
+    const name = ruleName.toUpperCase();
+    if (name.includes('PORT') || name.includes('5432') || name.includes('6379')) {
+      return /5432|6379/;
+    }
+    if (name.includes('SECRET') || name.includes('KEY') || name.includes('PRIVATE') || name.includes('PEM')) {
+      return /-----BEGIN|const|let|var|=|process\.env/;
+    }
+    if (name.includes('HEADER') || name.includes('HELMET') || name.includes('SECURITY')) {
+      return /NestFactory|create|AppModule|Express/;
+    }
+    if (name.includes('GET') || name.includes('POST') || name.includes('PUT') || name.includes('CONTROLLER')) {
+      return /@Get|@Post|@Put|@Delete|@Controller/;
+    }
+    return null;
   }
 }

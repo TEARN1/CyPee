@@ -11,4 +11,4 @@ import { FederatedDefenseController } from './federated-defense.controller';
   providers: [ShieldService, FederatedDefenseService, SecurityHardeningService],
   exports: [ShieldService, FederatedDefenseService, SecurityHardeningService],
 })
-export class ShieldModule {}
+export class ShieldModule {} // reload-port-3000

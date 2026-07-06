@@ -34,7 +34,7 @@ export class SecurityHardeningController {
     const lockKey = `lock:user-transfer:${body.userId}`;
 
     // Acquire concurrency lock
-    const lockAcquired = this.hardeningService.acquireLock(lockKey);
+    const lockAcquired = await this.hardeningService.acquireLock(lockKey);
     if (!lockAcquired) {
       throw new BadRequestException('Transaction blocked. Concurrent request active.');
     }
@@ -49,7 +49,7 @@ export class SecurityHardeningController {
       };
     } finally {
       // Always release concurrency lock
-      this.hardeningService.releaseLock(lockKey);
+      await this.hardeningService.releaseLock(lockKey);
     }
   }
 
