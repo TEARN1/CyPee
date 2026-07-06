@@ -8,6 +8,7 @@ import { MetricCards } from './components/MetricCards';
 import { ApiReference } from './components/ApiReference';
 import { RulesCatalog } from './components/RulesCatalog';
 import { ActiveHardening } from './components/ActiveHardening';
+import { IncidentsPanel } from './components/IncidentsPanel';
 import { signPayload } from './signPayload';
 import { ShieldCheck, Server, AlertCircle, RefreshCw, LayoutDashboard, Code, Trash2, Download, ShieldAlert } from 'lucide-react';
 
@@ -52,7 +53,7 @@ async function fetchWithPow(url: string, options: RequestInit): Promise<Response
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'api' | 'catalog' | 'hardening'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'api' | 'catalog' | 'hardening' | 'incidents'>('dashboard');
   const [findings, setFindings] = useState<IFinding[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<IFinding | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -308,6 +309,16 @@ function App() {
           >
             <ShieldAlert size={14} /> Active Hardening
           </button>
+          <button
+            onClick={() => setActiveTab('incidents')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'incidents'
+                ? 'bg-slate-800 text-indigo-400 border border-slate-700/60 shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldAlert size={14} /> Incidents & Forensics
+          </button>
         </div>
         
         <div className="flex items-center gap-3">
@@ -351,6 +362,10 @@ function App() {
       ) : activeTab === 'hardening' ? (
         <main className="flex-1 bg-slate-900/30 border border-slate-800/80 rounded-2xl p-6 shadow-lg shadow-black/10">
           <ActiveHardening />
+        </main>
+      ) : activeTab === 'incidents' ? (
+        <main className="flex-1 bg-slate-900/30 border border-slate-800/80 rounded-2xl p-6 shadow-lg shadow-black/10">
+          <IncidentsPanel />
         </main>
       ) : (
         <>
