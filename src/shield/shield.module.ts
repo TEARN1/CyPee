@@ -3,10 +3,11 @@ import { ShieldService } from './shield.service';
 import { FederatedDefenseService } from './federated-defense.service';
 import { SecurityHardeningService } from './security-hardening.service';
 import { SecurityHardeningController } from './security-hardening.controller';
+import { FederatedDefenseController } from './federated-defense.controller';
 
 @Global()
 @Module({
-  controllers: [SecurityHardeningController],
+  controllers: [SecurityHardeningController, FederatedDefenseController],
   providers: [ShieldService, FederatedDefenseService, SecurityHardeningService],
   exports: [ShieldService, FederatedDefenseService, SecurityHardeningService],
 })
