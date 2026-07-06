@@ -40,5 +40,7 @@
 - [x] Build Federated Threat Sharing Mesh (FederatedDefenseService) incorporating anonymized SHA-256 indicator exchanges
 - [x] Build Health Diagnostics status portal (HealthController) auditing database, queue, and security modules
 - [x] Build Diamond Model DFIR Forensic Attribution Engine (ForensicsService, IncidentsController) parsing capabilities, threat actors, and verified ledger timelines
-- [x] Build Unified Verification Accreditation Suite (run-all-tests.js) testing all 7 modules sequentially
+- [x] Build Unified Verification Accreditation Suite (run-all-tests.js) testing all 8 modules sequentially
 - [x] Implement Frontend Client-Side PoW Challenge Solver (fetchWithPow in App.tsx) utilizing browser-native SubtleCrypto digests
+- [x] Implement Frontend Active Hardening Panel (ActiveHardening.tsx) visualizing timing compares, locking mutex transactions, and HPP parameters
+- [x] Implement Frontend Incidents & Forensics Panel (IncidentsPanel.tsx) with interactive Diamond Model maps and cryptographic ledger timelines
