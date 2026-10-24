@@ -21,6 +21,7 @@ import { AuthGuardAuditor } from './modules/api-fuzzer';
 import { SemgrepScanner } from './modules/semgrep-scanner';
 import { ComplianceAuditor } from './modules/compliance-auditor';
 import { FindingCorrelator } from './modules/ai-correlator';
+import { FleetVulnerabilityAuditor } from './modules/fleet-auditors';
 
 @Injectable()
 export class ScanOrchestrator {
@@ -85,14 +86,16 @@ export class ScanOrchestrator {
       const supplyChain = new SupplyChainIntegrity();
       const authGuardAuditor = new AuthGuardAuditor();
       const semgrepScanner = new SemgrepScanner();
+      const fleetAuditor = new FleetVulnerabilityAuditor();
       const scanTargetPath = workspacePath;
 
       const modules = [
-        { name: 'SECRET_EXCAVATOR', runner: () => secretExcavator.scan(scanTargetPath), progress: 20 },
-        { name: 'IaC_SECURITY', runner: () => iacSecurity.scan(scanTargetPath), progress: 40 },
-        { name: 'CVE_INTELLIGENCE', runner: () => cveIntelligence.scan(scanTargetPath), progress: 60 },
-        { name: 'SUPPLY_CHAIN', runner: () => supplyChain.scan(scanTargetPath), progress: 80 },
-        { name: 'AUTH_GUARD_AUDIT', runner: () => authGuardAuditor.scan(scanTargetPath), progress: 90 },
+        { name: 'SECRET_EXCAVATOR', runner: () => secretExcavator.scan(scanTargetPath), progress: 15 },
+        { name: 'IaC_SECURITY', runner: () => iacSecurity.scan(scanTargetPath), progress: 30 },
+        { name: 'CVE_INTELLIGENCE', runner: () => cveIntelligence.scan(scanTargetPath), progress: 50 },
+        { name: 'SUPPLY_CHAIN', runner: () => supplyChain.scan(scanTargetPath), progress: 70 },
+        { name: 'AUTH_GUARD_AUDIT', runner: () => authGuardAuditor.scan(scanTargetPath), progress: 85 },
+        { name: 'FLEET_ENCLAVE_AUDIT', runner: () => fleetAuditor.scan(scanTargetPath), progress: 95 },
         { name: 'SEMGREP_SAST', runner: () => semgrepScanner.scan(scanTargetPath), progress: 100 },
       ];
 

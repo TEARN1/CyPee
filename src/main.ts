@@ -39,9 +39,9 @@ async function bootstrap() {
   app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT', 3000);
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : configService.get<number>('PORT', 3000);
 
-  await app.listen(port);
+  await app.listen(port, '127.0.0.1');
   logger.log(`SAST Ingestion Engine successfully running on: http://localhost:${port}`);
   logger.log(`Accepting uploads at POST http://localhost:${port}/api/v1/compliance/upload`);
 }

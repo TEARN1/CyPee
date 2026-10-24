@@ -4,11 +4,32 @@ import { FederatedDefenseService } from './federated-defense.service';
 import { SecurityHardeningService } from './security-hardening.service';
 import { SecurityHardeningController } from './security-hardening.controller';
 import { FederatedDefenseController } from './federated-defense.controller';
+import { GatewayService } from './gateway.service';
+import { GatewayController } from './gateway.controller';
+import { FleetService } from './fleet.service';
+import { FleetController } from './fleet.controller';
 
 @Global()
 @Module({
-  controllers: [SecurityHardeningController, FederatedDefenseController],
-  providers: [ShieldService, FederatedDefenseService, SecurityHardeningService],
-  exports: [ShieldService, FederatedDefenseService, SecurityHardeningService],
+  controllers: [
+    SecurityHardeningController,
+    FederatedDefenseController,
+    GatewayController,
+    FleetController,
+  ],
+  providers: [
+    ShieldService,
+    FederatedDefenseService,
+    SecurityHardeningService,
+    GatewayService,
+    FleetService,
+  ],
+  exports: [
+    ShieldService,
+    FederatedDefenseService,
+    SecurityHardeningService,
+    GatewayService,
+    FleetService,
+  ],
 })
-export class ShieldModule {} // reload-port-3000
+export class ShieldModule {}

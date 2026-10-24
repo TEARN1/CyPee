@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
+import { DbCryptoService } from '../database/db-crypto.service';
 import { AuditLogService } from '../audit/audit-log.service';
 import { TotpService } from './totp.service';
 import { LoginDto, RegisterDto } from './dto/login.dto';
@@ -14,6 +15,7 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly dbCrypto: DbCryptoService,
     private readonly jwtService: JwtService,
     private readonly auditLog: AuditLogService,
     private readonly totpService: TotpService,
@@ -49,7 +51,8 @@ export class AuthService {
         };
       }
 
-      const verified = this.totpService.verifyCode(user.totpSecret || '', dto.mfaCode);
+      const secret = user.totpSecret ? this.dbCrypto.decrypt(user.totpSecret) : '';
+      const verified = this.totpService.verifyCode(secret, dto.mfaCode);
       if (!verified) {
         throw new UnauthorizedException('Invalid MFA verification code');
       }
@@ -145,10 +148,11 @@ export class AuthService {
 
     const setup = this.totpService.generateSecret();
 
-    // Temporarily save secret
+    // Save secret with AES-256-GCM envelope encryption at rest
+    const encryptedSecret = this.dbCrypto.encrypt(setup.secret);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { totpSecret: setup.secret },
+      data: { totpSecret: encryptedSecret },
     });
 
     return {
@@ -170,7 +174,8 @@ export class AuthService {
       throw new BadRequestException('MFA setup is not initialized');
     }
 
-    const verified = this.totpService.verifyCode(user.totpSecret, code);
+    const decryptedSecret = this.dbCrypto.decrypt(user.totpSecret);
+    const verified = this.totpService.verifyCode(decryptedSecret, code);
     if (!verified) {
       throw new BadRequestException('Invalid MFA verification code');
     }
