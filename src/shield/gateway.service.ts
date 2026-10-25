@@ -6,6 +6,7 @@ import { ShieldService } from './shield.service';
 import { FederatedDefenseService } from './federated-defense.service';
 import { AuditLogService } from '../audit/audit-log.service';
 import { BreachResponseService } from './breach-response.service';
+import { AttackerReconService } from './attacker-recon.service';
 
 export interface UpstreamApp {
   id: string;
@@ -35,6 +36,7 @@ export class GatewayService {
     private readonly federatedDefense: FederatedDefenseService,
     private readonly auditLog: AuditLogService,
     private readonly breachResponse: BreachResponseService,
+    private readonly reconService: AttackerReconService,
   ) {
     this.enclaveSecret = this.configService.get<string>('JWT_SECRET', 'shield-super-secret-jwt-key-change-in-production-2025');
 
@@ -270,6 +272,18 @@ export class GatewayService {
           targetResource: `${appId}:${subPath}`,
           payloadSnippet: deepCheck.vector,
         }).catch((err) => this.logger.error(`Breach handling error: ${err.message}`));
+
+        // Reverse Cyber Reconnaissance: Build Forensic Intelligence Dossier & Arm Canary Beacons
+        await this.reconService.captureAttackerTelemetry(
+          ip,
+          (appId as any) || 'vgruvs',
+          subPath,
+          req.method,
+          req.headers as any,
+          req.query || {},
+          deepCheck.vector || normalized,
+          deepCheck.threatCategory || 'EXPLOIT_INTERCEPTED',
+        ).catch((err) => this.logger.error(`Recon capture error: ${err.message}`));
 
         await this.auditLog.log('SYSTEM', 'GATEWAY_ATTACK_INTERCEPTED', `gateway:${appId}`, {
           ip,
