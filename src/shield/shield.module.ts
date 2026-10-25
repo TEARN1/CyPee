@@ -8,6 +8,9 @@ import { GatewayService } from './gateway.service';
 import { GatewayController } from './gateway.controller';
 import { FleetService } from './fleet.service';
 import { FleetController } from './fleet.controller';
+import { BreachResponseService } from './breach-response.service';
+import { BreachResponseController } from './breach-response.controller';
+import { MtlsMeshGuard } from './mtls-mesh.guard';
 
 @Global()
 @Module({
@@ -16,6 +19,7 @@ import { FleetController } from './fleet.controller';
     FederatedDefenseController,
     GatewayController,
     FleetController,
+    BreachResponseController,
   ],
   providers: [
     ShieldService,
@@ -23,6 +27,8 @@ import { FleetController } from './fleet.controller';
     SecurityHardeningService,
     GatewayService,
     FleetService,
+    BreachResponseService,
+    MtlsMeshGuard,
   ],
   exports: [
     ShieldService,
@@ -30,6 +36,8 @@ import { FleetController } from './fleet.controller';
     SecurityHardeningService,
     GatewayService,
     FleetService,
+    BreachResponseService,
+    MtlsMeshGuard,
   ],
 })
 export class ShieldModule {}

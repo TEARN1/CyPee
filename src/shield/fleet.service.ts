@@ -4,6 +4,8 @@ import { PrismaService } from '../database/prisma.service';
 import { FederatedDefenseService } from './federated-defense.service';
 import { AuditLogService } from '../audit/audit-log.service';
 
+export type EnclaveAppId = 'vgruvs' | 'the-resident' | 'the-gruvs' | 'excellency';
+
 export interface FleetEntityStatus {
   id: string;
   name: string;
@@ -11,7 +13,7 @@ export interface FleetEntityStatus {
   url: string;
   status: 'ONLINE' | 'QUARANTINED' | 'DEGRADED';
   postureScore: number;
-  isolationLevel: 'HARDENED_ENCLAVE' | 'RESTRICTED_SANDBOX' | 'PRIVILEGED_HOST';
+  isolationLevel: 'HARDENED_ENCLAVE' | 'RESTRICTED_SANDBOX' | 'PRIVILEGED_HOST' | 'FULL_AIRGAP';
   attestationHash: string;
   criticalVulnerabilities: number;
   highVulnerabilities: number;
@@ -147,6 +149,15 @@ export class FleetService {
     });
 
     return entity;
+  }
+
+  /**
+   * Enclave isolation alias used by automated active breach response.
+   */
+  async isolateEnclave(id: string, isolationLevel: 'FULL_AIRGAP' | 'RESTRICTED_SANDBOX' = 'FULL_AIRGAP'): Promise<FleetEntityStatus> {
+    const res = await this.quarantineEntity(id, `Automated Active Breach Response - Enforcing ${isolationLevel}`);
+    res.isolationLevel = isolationLevel;
+    return res;
   }
 
   /**

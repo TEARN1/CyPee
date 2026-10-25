@@ -33,7 +33,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$queryRawUnsafe('PRAGMA foreign_keys = ON;');
       // 3. Balanced disk sync for performance & crash resilience
       await this.$queryRawUnsafe('PRAGMA synchronous = NORMAL;');
-      this.logger.log('Database connected via PrismaBetterSqlite3 adapter with WAL mode & Foreign Keys enforced');
+      // 4. Concurrency lock timeout (prevents lock starvation across The Resident, The Gruvs, and Excellency)
+      await this.$queryRawUnsafe('PRAGMA busy_timeout = 5000;');
+      // 5. Ephemeral temp storage in RAM (prevents unencrypted query temps leaking to disk)
+      await this.$queryRawUnsafe('PRAGMA temp_store = MEMORY;');
+      this.logger.log('Database connected via PrismaBetterSqlite3 adapter with WAL, Foreign Keys, Busy Timeout & In-Memory Temp Store enforced');
     } catch {
       this.logger.log('Database connected via PrismaBetterSqlite3 adapter');
     }

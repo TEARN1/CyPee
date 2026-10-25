@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { ShieldService } from './shield.service';
 import { FederatedDefenseService } from './federated-defense.service';
 import { AuditLogService } from '../audit/audit-log.service';
+import { BreachResponseService } from './breach-response.service';
 
 export interface UpstreamApp {
   id: string;
@@ -33,6 +34,7 @@ export class GatewayService {
     private readonly shieldService: ShieldService,
     private readonly federatedDefense: FederatedDefenseService,
     private readonly auditLog: AuditLogService,
+    private readonly breachResponse: BreachResponseService,
   ) {
     this.enclaveSecret = this.configService.get<string>('JWT_SECRET', 'shield-super-secret-jwt-key-change-in-production-2025');
 
@@ -205,6 +207,17 @@ export class GatewayService {
     const app = this.getApp(appId);
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
 
+    // Tier 0: Edge Firewall Blacklist & Tarpit Deflection
+    if (this.breachResponse.isBlacklisted(ip)) {
+      this.logger.warn(`[FIREWALL DROP] Inbound traffic dropped for blacklisted IP: ${ip}`);
+      throw new ForbiddenException('Access denied by CyPee Edge Threat Defense firewall');
+    }
+
+    if (this.breachResponse.isTarpitted(ip)) {
+      this.logger.warn(`[TARPIT ENGAGED] Throttling suspicious client socket for IP: ${ip}`);
+      await new Promise((r) => setTimeout(r, 2000)); // Artificial Slowloris friction
+    }
+
     // Tier 1: Threat Mesh Instant Quarantine Check
     if (this.federatedDefense.isThreatBlocked(ip)) {
       this.logger.warn(`[ENCLAVE QUARANTINE] IP ${ip} is banned in the Federated Mesh. Dropped before reaching "${appId}".`);
@@ -248,6 +261,15 @@ export class GatewayService {
 
         // Immediate synchronized quarantine across all apps (V-Gruvs + App1 + App2 + App3)
         await this.federatedDefense.shareThreatSignature(deepCheck.threatCategory!, ip);
+
+        // Active Countermeasure Response (Tarpit, Enclave Airgap, Forensic Freeze)
+        await this.breachResponse.handleBreachEvent({
+          source: 'GATEWAY_DPI',
+          enclaveAppId: (appId as any) || 'vgruvs',
+          attackerIp: ip,
+          targetResource: `${appId}:${subPath}`,
+          payloadSnippet: deepCheck.vector,
+        }).catch((err) => this.logger.error(`Breach handling error: ${err.message}`));
 
         await this.auditLog.log('SYSTEM', 'GATEWAY_ATTACK_INTERCEPTED', `gateway:${appId}`, {
           ip,
