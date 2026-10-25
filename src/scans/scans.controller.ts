@@ -63,7 +63,9 @@ export class ScansController {
   @Sse(':id/stream')
   @ApiOperation({ summary: 'Server-Sent Events stream for live telemetry' })
   @ApiParam({ name: 'id', type: String, description: 'Scan UUID' })
-  stream(@Param() params: GetScanParamsDto): Observable<MessageEvent> {
+  async stream(@Param() params: GetScanParamsDto, @Req() req: any): Promise<Observable<MessageEvent>> {
+    // Enforce multi-tenant ownership check before opening SSE telemetry stream
+    await this.scansService.findById(params.id, req.user.tenantId);
     return this.eventBus.getObservable(params.id);
   }
 }

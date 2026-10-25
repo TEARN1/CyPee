@@ -191,11 +191,14 @@ export class AuthService {
   }
 
   /**
-   * Logs out the user by terminating the active session record.
+   * Logs out the user by terminating the active session record scoped to the tenant.
    */
   async logout(sessionId: string, tenantId: string) {
     await this.prisma.userSession.deleteMany({
-      where: { id: sessionId },
+      where: {
+        id: sessionId,
+        user: { tenantId },
+      },
     });
     this.logger.log(`Session terminated: ${sessionId}`);
   }

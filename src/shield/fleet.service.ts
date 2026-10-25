@@ -125,6 +125,14 @@ export class FleetService {
   }
 
   /**
+   * Checks whether an application enclave or host platform is currently quarantined.
+   */
+  isQuarantined(id: string): boolean {
+    const entity = this.entities.get(id);
+    return entity ? entity.status === 'QUARANTINED' : false;
+  }
+
+  /**
    * Emergency isolation killswitch for any app or V-Gruvs host
    */
   async quarantineEntity(id: string, reason: string): Promise<FleetEntityStatus> {

@@ -7,12 +7,13 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, { bodyParser: false });
 
-  // Enable CORS for local cross-origin frontend queries
-  app.enableCors();
+  // Enable CORS with exposed challenge headers for PoW handshakes
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    exposedHeaders: ['x-shield-challenge', 'x-cypee-shield-version', 'x-cypee-proxy-time'],
+  });
 
-  // Set global API prefix (optional, but highly recommended)
-  // Our route is already /api/v1/compliance/upload in the controller, so we can keep it as is.
-  
   // Enable global validations for requests
   app.useGlobalPipes(
     new ValidationPipe({
@@ -22,18 +23,19 @@ async function bootstrap() {
     }),
   );
 
-  // Capture raw body buffer for secure cryptographic signature validation
+  // Capture raw body buffer for secure cryptographic signature validation with strict 1MB payload cap
   const express = require('express');
   const path = require('path');
   
   app.use(
     express.json({
+      limit: '1mb',
       verify: (req: any, res: any, buf: Buffer) => {
         req.rawBody = buf;
       },
     }),
   );
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // Serve static dashboard UI from frontend/dist build directory
   app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));

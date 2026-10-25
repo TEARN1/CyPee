@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -12,7 +13,14 @@ export class ApiKeyGuard implements CanActivate {
     // Retrieve the authorized API key from configs. Default to a test key for development convenience.
     const expectedKey = this.configService.get<string>('API_KEY', 'sast-engine-dev-token-98765');
 
-    if (!apiKey || apiKey !== expectedKey) {
+    if (!apiKey || typeof apiKey !== 'string') {
+      throw new UnauthorizedException('Access denied. Invalid or missing X-API-KEY header.');
+    }
+
+    const actualBuf = Buffer.from(apiKey, 'utf8');
+    const expectedBuf = Buffer.from(expectedKey, 'utf8');
+
+    if (actualBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(actualBuf, expectedBuf)) {
       throw new UnauthorizedException('Access denied. Invalid or missing X-API-KEY header.');
     }
 

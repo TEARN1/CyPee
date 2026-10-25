@@ -37,10 +37,37 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$queryRawUnsafe('PRAGMA busy_timeout = 5000;');
       // 5. Ephemeral temp storage in RAM (prevents unencrypted query temps leaking to disk)
       await this.$queryRawUnsafe('PRAGMA temp_store = MEMORY;');
+
+      // 6. Ensure default sovereign enclave tenant exists so FK constraints never fail on unauthenticated/system events
+      await this.tenant.upsert({
+        where: { id: 'default-dev-tenant-uuid' },
+        update: {},
+        create: {
+          id: 'default-dev-tenant-uuid',
+          name: 'CyPee Sovereign Default Enclave',
+          plan: 'ENTERPRISE',
+        },
+      });
+
       this.logger.log('Database connected via PrismaBetterSqlite3 adapter with WAL, Foreign Keys, Busy Timeout & In-Memory Temp Store enforced');
     } catch {
       this.logger.log('Database connected via PrismaBetterSqlite3 adapter');
     }
+  }
+
+  /**
+   * Resolves a tenantId to a verified existing Tenant record, falling back to 'default-dev-tenant-uuid'
+   * so strict SQLite Foreign Key constraints never reject synthetic/unauthenticated security events.
+   */
+  async resolveSafeTenantId(tenantId?: string | null): Promise<string> {
+    if (!tenantId || tenantId === 'system' || tenantId === 'SYSTEM') {
+      return 'default-dev-tenant-uuid';
+    }
+    const existing = await this.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true },
+    });
+    return existing ? existing.id : 'default-dev-tenant-uuid';
   }
 
   async onModuleDestroy() {

@@ -18,6 +18,10 @@ export class ShieldService {
   // In-memory telemetry storage for behavioral analysis
   private ipHistory = new Map<string, { timestamps: number[]; paths: string[] }>();
 
+  // Server-issued PoW challenges with expiration timestamps (prevents difficulty tampering & replay)
+  private issuedChallenges = new Map<string, number>();
+  private readonly CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   // Local vector firewall cache of known attack vector signatures
   private readonly threatSignatures = [
     'SELECT * FROM users WHERE',
@@ -38,22 +42,55 @@ export class ShieldService {
    */
   generateChallenge(): string {
     const salt = crypto.randomBytes(16).toString('hex');
-    const difficulty = 4; // requires leading hex zeroes
-    return `${salt}|${difficulty}`;
+    const difficulty = 4; // requires 4 leading hex zeroes
+    const challenge = `${salt}|${difficulty}`;
+
+    // Evict expired challenges if map grows large
+    if (this.issuedChallenges.size > 5000) {
+      const now = Date.now();
+      for (const [k, exp] of this.issuedChallenges.entries()) {
+        if (now > exp) this.issuedChallenges.delete(k);
+      }
+    }
+
+    this.issuedChallenges.set(challenge, Date.now() + this.CHALLENGE_TTL_MS);
+    return challenge;
   }
 
   /**
    * Verifies the client's Proof of Work.
-   * Checks if SHA-256(challenge + nonce) has 'difficulty' leading hex zeroes.
+   * Checks that the challenge was server-issued, unexpired, has valid bounded difficulty [4..8],
+   * and that SHA-256(salt + nonce) has 'difficulty' leading hex zeroes.
    */
   verifyPoW(challenge: string, nonce: string): boolean {
-    if (!challenge || !nonce) return false;
+    if (!challenge || !nonce || typeof challenge !== 'string' || typeof nonce !== 'string') {
+      return false;
+    }
+
+    const expiry = this.issuedChallenges.get(challenge);
+    if (!expiry || Date.now() > expiry) {
+      this.issuedChallenges.delete(challenge);
+      return false;
+    }
+
     const [salt, difficultyStr] = challenge.split('|');
+    if (!salt || salt.length < 16) return false;
+
     const difficulty = parseInt(difficultyStr, 10);
-    
+    if (!Number.isInteger(difficulty) || difficulty < 4 || difficulty > 8) {
+      return false;
+    }
+
     const hash = crypto.createHash('sha256').update(`${salt}${nonce}`).digest('hex');
     const prefix = '0'.repeat(difficulty);
-    return hash.startsWith(prefix);
+    const verified = hash.startsWith(prefix);
+
+    if (verified) {
+      // Single-use challenge consumption prevents PoW replay floods
+      this.issuedChallenges.delete(challenge);
+    }
+
+    return verified;
   }
 
   /**

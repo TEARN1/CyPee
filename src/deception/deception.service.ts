@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AuditLogService } from '../audit/audit-log.service';
+import { AttackerReconService } from '../shield/attacker-recon.service';
+import { BreachResponseService } from '../shield/breach-response.service';
 
 @Injectable()
 export class DeceptionService {
@@ -9,12 +11,15 @@ export class DeceptionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
+    private readonly reconService: AttackerReconService,
+    private readonly breachResponse: BreachResponseService,
   ) {}
 
   /**
    * Generates a new decoy honeytoken credential and saves it in the database.
    */
   async generateHoneytoken(tenantId: string, label: string, type: 'AWS' | 'DB' | 'SSH'): Promise<{ token: string; keyId?: string }> {
+    const safeTenantId = await this.prisma.resolveSafeTenantId(tenantId);
     let token = '';
     let keyId = '';
 
@@ -31,7 +36,7 @@ export class DeceptionService {
 
     await this.prisma.honeytoken.create({
       data: {
-        tenantId,
+        tenantId: safeTenantId,
         type,
         value: token,
         placement: label,
@@ -44,8 +49,8 @@ export class DeceptionService {
   }
 
   /**
-   * Triggers an immediate critical incident and tampered audit log when a decoy endpoint
-   * or credential is touched.
+   * Triggers an immediate critical incident, attacker dossier capture, and tampered audit log
+   * when a decoy endpoint or credential is touched.
    */
   async handleDeceptionHit(
     tenantId: string,
@@ -55,10 +60,11 @@ export class DeceptionService {
     path: string,
   ): Promise<void> {
     this.logger.error(`🚨 HONEYTOKEN TRIGGERED! Decoy accessed from IP: ${ip} at path: ${path}`);
+    const safeTenantId = await this.prisma.resolveSafeTenantId(tenantId);
 
     // Track accessed count on the decoy token
     const token = await this.prisma.honeytoken.findFirst({
-      where: { tenantId, value: honeytokenValue },
+      where: { tenantId: safeTenantId, value: honeytokenValue },
     });
 
     if (token) {
@@ -75,7 +81,7 @@ export class DeceptionService {
     // Create Incident for the SOC dashboard
     const incident = await this.prisma.incident.create({
       data: {
-        tenantId,
+        tenantId: safeTenantId,
         type: 'HONEYTOKEN_DECEPTION_TRIGGERED',
         severity: 'CRITICAL',
         status: 'OPEN',
@@ -89,8 +95,21 @@ export class DeceptionService {
       },
     });
 
+    // Capture full Attacker Reconnaissance Dossier & trigger active tarpit/blacklist
+    await this.reconService.captureAttackerTelemetry(
+      ip,
+      'vgruvs',
+      path,
+      'GET',
+      headers,
+      {},
+      `HONEYTOKEN_TRAP:${honeytokenValue}`,
+      'HONEYTOKEN_DECEPTION_TRIGGERED',
+    );
+    this.breachResponse.engageTarpit(ip);
+
     // Write a system-wide tampered audit log entry
-    await this.auditLog.log(tenantId, 'HONEYTOKEN_COMPROMISED', `honeytoken:${token?.id || 'decoy'}`, {
+    await this.auditLog.log(safeTenantId, 'HONEYTOKEN_COMPROMISED', `honeytoken:${token?.id || 'decoy'}`, {
       ip,
       path,
       incidentId: incident.id,

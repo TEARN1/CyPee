@@ -7,6 +7,7 @@ import { FederatedDefenseService } from './federated-defense.service';
 import { AuditLogService } from '../audit/audit-log.service';
 import { BreachResponseService } from './breach-response.service';
 import { AttackerReconService } from './attacker-recon.service';
+import { FleetService } from './fleet.service';
 
 export interface UpstreamApp {
   id: string;
@@ -37,22 +38,44 @@ export class GatewayService {
     private readonly auditLog: AuditLogService,
     private readonly breachResponse: BreachResponseService,
     private readonly reconService: AttackerReconService,
+    private readonly fleetService: FleetService,
   ) {
     this.enclaveSecret = this.configService.get<string>('JWT_SECRET', 'shield-super-secret-jwt-key-change-in-production-2025');
 
-    // Register Default Upstreams: V-Gruvs platform and your applications
+    // Register Default Upstreams: V-Gruvs host platform and the 3 core applications
     const vgruvsUrl = this.configService.get<string>('VGRUVS_URL', 'http://127.0.0.1:4000');
-    const app1Url = this.configService.get<string>('APP1_URL', 'http://127.0.0.1:4001');
-    const app2Url = this.configService.get<string>('APP2_URL', 'http://127.0.0.1:4002');
-    const app3Url = this.configService.get<string>('APP3_URL', 'http://127.0.0.1:4003');
+    const residentUrl = this.configService.get<string>('APP1_URL', 'http://127.0.0.1:4001');
+    const gruvsUrl = this.configService.get<string>('APP2_URL', 'http://127.0.0.1:4002');
+    const excellencyUrl = this.configService.get<string>('APP3_URL', 'http://127.0.0.1:4003');
 
-    this.registerApp('vgruvs', vgruvsUrl, 'V-Gruvs Core Enclave Platform', 300);
-    this.registerApp('app1', app1Url, 'Primary Web Application', 120);
-    this.registerApp('app2', app2Url, 'Microservice / API Layer', 180);
-    this.registerApp('app3', app3Url, 'Billing & Operations Service', 60);
+    this.registerApp('vgruvs', vgruvsUrl, 'V-Gruvs (Host Infrastructure)', 300);
+    this.registerApp('the-resident', residentUrl, 'The Resident (Identity & Portal)', 120);
+    this.registerApp('the-gruvs', gruvsUrl, 'The Gruvs (Core Operations)', 180);
+    this.registerApp('excellency', excellencyUrl, 'Excellency (Financials & Sheets)', 60);
+
+    // Maintain legacy aliases for backwards compatibility
+    this.registerApp('app1', residentUrl, 'The Resident (Alias: app1)', 120);
+    this.registerApp('app2', gruvsUrl, 'The Gruvs (Alias: app2)', 180);
+    this.registerApp('app3', excellencyUrl, 'Excellency (Alias: app3)', 60);
   }
 
   registerApp(id: string, targetUrl: string, name?: string, rateLimitPerMin = 120): UpstreamApp {
+    let parsed: URL;
+    try {
+      parsed = new URL(targetUrl);
+    } catch {
+      throw new ForbiddenException(`Invalid targetUrl "${targetUrl}" for enclave registration.`);
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new ForbiddenException(`Disallowed protocol "${parsed.protocol}" for enclave upstream.`);
+    }
+
+    // Block SSRF registration against cloud metadata endpoints
+    if (parsed.hostname === '169.254.169.254' || parsed.hostname === 'metadata.google.internal') {
+      throw new ForbiddenException('Cloud metadata endpoints cannot be registered as gateway upstreams.');
+    }
+
     const cleanUrl = targetUrl.replace(/\/+$/, '');
     const app: UpstreamApp = {
       id,
@@ -209,7 +232,12 @@ export class GatewayService {
     const app = this.getApp(appId);
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
 
-    // Tier 0: Edge Firewall Blacklist & Tarpit Deflection
+    // Tier 0: Enclave Airgap Quarantine, Edge Firewall Blacklist & Tarpit Deflection
+    if (this.fleetService.isQuarantined(appId)) {
+      this.logger.warn(`[ENCLAVE AIRGAP] Blocked inbound traffic to quarantined enclave "${appId}" from IP: ${ip}`);
+      throw new ForbiddenException(`Enclave "${app.name}" is currently under FULL_AIRGAP quarantine lockdown.`);
+    }
+
     if (this.breachResponse.isBlacklisted(ip)) {
       this.logger.warn(`[FIREWALL DROP] Inbound traffic dropped for blacklisted IP: ${ip}`);
       throw new ForbiddenException('Access denied by CyPee Edge Threat Defense firewall');

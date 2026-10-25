@@ -2,6 +2,8 @@ import { Injectable, NestMiddleware, ForbiddenException, BadRequestException, Lo
 import { Request, Response, NextFunction } from 'express';
 import { ShieldService } from './shield.service';
 import { AuditLogService } from '../audit/audit-log.service';
+import { BreachResponseService } from './breach-response.service';
+import { AttackerReconService } from './attacker-recon.service';
 
 @Injectable()
 export class ShieldMiddleware implements NestMiddleware {
@@ -10,12 +12,29 @@ export class ShieldMiddleware implements NestMiddleware {
   constructor(
     private readonly shieldService: ShieldService,
     private readonly auditLog: AuditLogService,
+    private readonly breachResponse: BreachResponseService,
+    private readonly reconService: AttackerReconService,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
     const path = req.originalUrl || req.url;
     const now = Date.now();
+
+    // Always allow Canary Phone-Home Beacon callbacks through so attacker workstation IPs are captured
+    if (path.includes('/api/v1/shield/recon/beacon/')) {
+      return next();
+    }
+
+    // 0. Edge Firewall Blacklist & Active Tarpit Deflection
+    if (this.breachResponse.isBlacklisted(ip)) {
+      this.logger.warn(`[FIREWALL DROP] Blocked request from blacklisted IP: ${ip} | Path: ${path}`);
+      throw new ForbiddenException('Access denied by CyPee Edge Threat Defense firewall.');
+    }
+
+    if (this.breachResponse.isTarpitted(ip)) {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
 
     // 1. GeoIP Check
     const geo = this.shieldService.auditGeoIp(ip);
@@ -65,7 +84,18 @@ export class ShieldMiddleware implements NestMiddleware {
 
       if (firewall.blocked) {
         this.logger.warn(`Vector Firewall intercepted threat payload matching signature: "${firewall.matchedSignature}" (Similarity: ${(firewall.similarity * 100).toFixed(1)}%) | IP: ${ip}`);
-        
+
+        await this.reconService.captureAttackerTelemetry(
+          ip,
+          'vgruvs',
+          path,
+          req.method,
+          req.headers as Record<string, string>,
+          req.query || {},
+          bodyStr,
+          `VECTOR_FIREWALL:${firewall.matchedSignature}`,
+        ).catch(() => undefined);
+
         await this.auditLog.log('SYSTEM', 'THREAT_INTERCEPTED', `ip:${ip}`, {
           path,
           matchedSignature: firewall.matchedSignature,

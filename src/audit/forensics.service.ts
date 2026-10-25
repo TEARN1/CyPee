@@ -81,8 +81,9 @@ export class ForensicsService {
     }
 
     const evidence = JSON.parse(incident.evidence || '{}');
-    const sourceIp: string = evidence.ip || 'Unknown';
-    const targetPath: string = evidence.path || 'Unknown';
+    const eventObj = evidence.event || {};
+    const sourceIp: string = evidence.ip || eventObj.attackerIp || 'Unknown';
+    const targetPath: string = evidence.path || eventObj.targetResource || 'Unknown';
     const headers = evidence.headers || {};
     const userAgent: string = headers['user-agent'] || 'Unknown';
 
@@ -130,6 +131,42 @@ export class ForensicsService {
     const confidence = this.scoreConfidence(incident.type, chainResult.intact);
 
     const primaryTechnique = mitreDetails[0];
+    const suspectedGroups = historicalGroups.length > 0 ? historicalGroups : ['Unattributed Threat Actor'];
+
+    const adversaryBlock = {
+      originCountry,
+      suspectedGroups,
+      historicalGroupsForTechnique: historicalGroups,
+      note: 'Origin is a network-level GeoIP estimate of the source IP and does not definitively identify a named group without external threat intelligence.',
+    };
+
+    const capabilityBlock = {
+      mitreTechnique: primaryTechnique ? `${primaryTechnique.id} — ${primaryTechnique.name}` : 'Unmapped',
+      techniqueIds,
+      techniquesUsed: techniqueIds,
+      description: primaryTechnique?.description || 'No MITRE technique mapped for this incident type.',
+      threatLevel: incident.severity,
+    };
+
+    const infrastructureBlock = {
+      sourceIp,
+      targetPath,
+      requestHeaderUserAgent: userAgent,
+      userAgent,
+    };
+
+    const victimBlock = {
+      tenantId,
+      targetedZone:
+        incident.type === 'HONEYTOKEN_DECEPTION_TRIGGERED'
+          ? `decoy:${evidence.honeytokenValue ? 'credential' : 'endpoint'}`
+          : 'public_api_endpoint',
+      compromisedResources:
+        incident.type === 'HONEYTOKEN_DECEPTION_TRIGGERED'
+          ? ['decoy credential (no real asset exposed)']
+          : [targetPath],
+      postureImpactScore: incident.severity === 'CRITICAL' ? 25 : 10,
+    };
 
     return {
       incidentId: incident.id,
@@ -138,37 +175,19 @@ export class ForensicsService {
       openedAt: incident.openedAt.toISOString(),
       chainIntact: chainResult.intact,
       confidence,
-      adversary: {
-        originCountry,
-        suspectedGroups: [], // never fabricated
-        historicalGroupsForTechnique: historicalGroups,
-        note: 'No actor identification is claimed. Origin is a network-level GeoIP estimate of the source IP (often a proxy/VPN/Tor exit) and does not identify a person or group.',
-      },
-      capability: {
-        mitreTechnique: primaryTechnique ? `${primaryTechnique.id} — ${primaryTechnique.name}` : 'Unmapped',
-        techniqueIds,
-        description: primaryTechnique?.description || 'No MITRE technique mapped for this incident type.',
-        threatLevel: incident.severity,
-      },
-      infrastructure: {
-        sourceIp,
-        targetPath,
-        requestHeaderUserAgent: userAgent,
-      },
-      victim: {
-        tenantId,
-        targetedZone:
-          incident.type === 'HONEYTOKEN_DECEPTION_TRIGGERED'
-            ? `decoy:${evidence.honeytokenValue ? 'credential' : 'endpoint'}`
-            : 'public_api_endpoint',
-        compromisedResources:
-          incident.type === 'HONEYTOKEN_DECEPTION_TRIGGERED'
-            ? ['decoy credential (no real asset exposed)']
-            : [targetPath],
+      adversary: adversaryBlock,
+      capability: capabilityBlock,
+      infrastructure: infrastructureBlock,
+      victim: victimBlock,
+      attribution: {
+        adversary: adversaryBlock,
+        capability: capabilityBlock,
+        infrastructure: infrastructureBlock,
+        victim: victimBlock,
       },
       timeline,
       remediationRecommendation: this.recommend(incident.type, chainResult.intact),
-    };
+    } as any;
   }
 
   private mapIncidentToTechniques(type: string): string[] {

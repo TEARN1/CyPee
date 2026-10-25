@@ -175,11 +175,12 @@ export class BreachResponseService {
     };
 
     const evidenceHash = crypto.createHash('sha256').update(JSON.stringify(evidenceRaw)).digest('hex');
+    const safeTenantId = await this.prisma.resolveSafeTenantId(event.tenantId);
 
     // Create Incident record
     await this.prisma.incident.create({
       data: {
-        tenantId: event.tenantId || 'system',
+        tenantId: safeTenantId,
         type: `BREACH_COUNTERMEASURE_${event.source}`,
         severity: 'CRITICAL',
         status: 'CONTAINED',
@@ -189,7 +190,7 @@ export class BreachResponseService {
 
     // Write to blockchain audit log
     await this.auditLog.log(
-      event.tenantId || 'system',
+      safeTenantId,
       'BREACH_DEFENSE_ENGAGED',
       `attacker:${event.attackerIp}`,
       {

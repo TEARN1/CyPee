@@ -38,10 +38,10 @@ export class Ed25519SignatureGuard implements CanActivate {
       throw new UnauthorizedException('Authentication Failed: x-sast-signature or x-sast-timestamp header is missing.');
     }
 
-    // Prevent Replay Attacks (Reject requests older than 120 seconds)
-    const timeDifference = Math.abs(Date.now() - parseInt(timestamp, 10));
-    if (timeDifference > 120000) {
-      throw new UnauthorizedException('Authentication Failed: Timestamp replay boundary exceeded.');
+    // Prevent Replay Attacks (Reject non-numeric or requests older than 120 seconds)
+    const parsedTimestamp = Number(timestamp);
+    if (!Number.isFinite(parsedTimestamp) || Math.abs(Date.now() - parsedTimestamp) > 120000) {
+      throw new UnauthorizedException('Authentication Failed: Timestamp invalid or replay boundary exceeded.');
     }
 
     // Use raw request body buffer if available, otherwise fallback

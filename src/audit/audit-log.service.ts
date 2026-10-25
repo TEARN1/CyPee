@@ -21,7 +21,16 @@ export class AuditLogService {
     actorId?: string,
   ): Promise<void> {
     try {
-      const dbTenantId = tenantId === 'SYSTEM' ? null : tenantId;
+      let dbTenantId = !tenantId || tenantId === 'SYSTEM' || tenantId === 'system' ? null : tenantId;
+      if (dbTenantId) {
+        const exists = await this.prisma.tenant.findUnique({
+          where: { id: dbTenantId },
+          select: { id: true },
+        });
+        if (!exists) {
+          dbTenantId = null;
+        }
+      }
 
       // Get the previous entry's hash to chain from
       const previous = await this.prisma.auditLog.findFirst({

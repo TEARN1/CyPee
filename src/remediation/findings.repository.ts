@@ -10,16 +10,17 @@ export class FindingsRepository {
 
   public async save(finding: IEnrichedSastFinding, tenantId: string): Promise<void> {
     try {
+      const safeTenantId = await this.prisma.resolveSafeTenantId(tenantId);
       // Get the latest scan or create a default scan reference for manually-ingested findings
       let latestScan = await this.prisma.scan.findFirst({
-        where: { tenantId },
+        where: { tenantId: safeTenantId },
         orderBy: { startedAt: 'desc' },
       });
 
       if (!latestScan) {
         latestScan = await this.prisma.scan.create({
           data: {
-            tenantId,
+            tenantId: safeTenantId,
             state: 'COMPLETE',
           },
         });
@@ -28,7 +29,7 @@ export class FindingsRepository {
       // Check if duplicate exists
       const duplicate = await this.prisma.finding.findFirst({
         where: {
-          tenantId,
+          tenantId: safeTenantId,
           scanId: latestScan.id,
           filePath: finding.filePath,
           lineNumber: finding.lineNumber,
@@ -40,7 +41,7 @@ export class FindingsRepository {
         await this.prisma.finding.create({
           data: {
             scanId: latestScan.id,
-            tenantId,
+            tenantId: safeTenantId,
             module: 'MANUAL_INGESTION',
             severity: finding.severity,
             title: finding.ruleId,
