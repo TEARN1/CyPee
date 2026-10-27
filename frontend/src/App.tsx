@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { sampleFindings, type IFinding } from './mockData';
 import { Dropzone } from './components/Dropzone';
 import { LiveTelemetry } from './components/LiveTelemetry';
@@ -13,6 +13,7 @@ import { FederatedMesh } from './components/FederatedMesh';
 import { SystemHealth } from './components/SystemHealth';
 import { FleetMatrix } from './components/FleetMatrix';
 import { signPayload } from './signPayload';
+import { getToken, setToken } from './auth';
 import { ShieldCheck, Server, AlertCircle, RefreshCw, LayoutDashboard, Code, Trash2, Download, ShieldAlert, Globe, Activity } from 'lucide-react';
 
 // Browser-side Proof of Work solver wrapping standard fetch
@@ -53,6 +54,82 @@ async function fetchWithPow(url: string, options: RequestInit): Promise<Response
     });
   }
   return response;
+}
+
+/** Sign in so the protected panels (fleet, breach, findings) answer. */
+function SignInBar() {
+  const [signedIn, setSignedIn] = useState(() => Boolean(getToken()));
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [needsCode, setNeedsCode] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (signedIn) {
+    return (
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          className="text-xs text-slate-300 underline"
+          onClick={() => {
+            setToken(null);
+            setSignedIn(false);
+            window.location.reload();
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const response = await fetchWithPow('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(needsCode ? { email, password, mfaCode } : { email, password })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.message ?? 'Sign-in failed.');
+      return;
+    }
+    if (body.mfaRequired) {
+      setNeedsCode(true);
+      return;
+    }
+    if (body.token) {
+      setToken(body.token);
+      setSignedIn(true);
+      window.location.reload();
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-wrap items-end gap-2 mb-4 p-3 border border-slate-800 rounded-xl text-sm" aria-label="Sign in">
+      <label className="flex flex-col text-xs text-slate-300">
+        Email
+        <input className="bg-slate-900 text-slate-100 border border-slate-700 rounded px-2 py-1" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      </label>
+      <label className="flex flex-col text-xs text-slate-300">
+        Password
+        <input className="bg-slate-900 text-slate-100 border border-slate-700 rounded px-2 py-1" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+      </label>
+      {needsCode && (
+        <label className="flex flex-col text-xs text-slate-300">
+          Authenticator code
+          <input className="bg-slate-900 text-slate-100 border border-slate-700 rounded px-2 py-1" inputMode="numeric" required value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} />
+        </label>
+      )}
+      <button type="submit" className="px-3 py-1.5 rounded bg-indigo-600 text-white text-xs font-semibold">
+        Sign in
+      </button>
+      <span className="text-xs text-slate-400">Most panels need you to sign in. System actions also need an owner account.</span>
+      {error && <span role="alert" className="text-xs text-rose-300">{error}</span>}
+    </form>
+  );
 }
 
 function App() {
@@ -382,6 +459,8 @@ function App() {
           </div>
         </div>
       </header>
+
+      <SignInBar />
 
       {/* Main Content Render */}
       {activeTab === 'api' ? (

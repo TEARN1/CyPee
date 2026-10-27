@@ -1,10 +1,14 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { BreachResponseService } from './breach-response.service';
 import { DbCryptoService } from '../database/db-crypto.service';
 import { StorageAttestorService } from '../database/storage-attestor.service';
 import { EnclaveAppId } from './fleet.service';
 
+// Signed-in users can read; only owners can act (see OwnerGuard).
 @Controller('api/v1/shield/breach')
+@UseGuards(JwtAuthGuard)
 export class BreachResponseController {
   constructor(
     private readonly breachResponse: BreachResponseService,
@@ -44,7 +48,8 @@ export class BreachResponseController {
           zeroDowntimeRotationReady: true,
         },
         databaseKernelRls: {
-          status: 'CONFIGURED',
+          // Row-level security exists only on PostgreSQL, and only once prisma/postgres_rls.sql is applied.
+          status: (process.env.DATABASE_URL ?? 'file:').startsWith('file:') ? 'NOT_ACTIVE_ON_SQLITE' : 'MIGRATION_AVAILABLE',
           supportedEngines: ['PostgreSQL 14+', 'AWS Aurora'],
           enforcementLevel: 'DATABASE_KERNEL',
           migrationFile: 'prisma/postgres_rls.sql',
@@ -56,7 +61,8 @@ export class BreachResponseController {
           tempStoreInMemory: storageAttestation.tempStoreInMemory,
         },
         mtlsWorkloadMesh: {
-          status: 'ENFORCED',
+          // The guard is written but no route uses it yet.
+          status: 'NOT_APPLIED',
           guard: 'MtlsMeshGuard',
           spiffeNamespace: 'spiffe://vgruvs.internal/*',
           enclavesCovered: ['the-resident', 'the-gruvs', 'excellency', 'vgruvs'],
@@ -70,6 +76,7 @@ export class BreachResponseController {
    * Executes a simulated breach drill to demonstrate CyPee's active defense workflow.
    */
   @Post('trigger-drill')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   async triggerBreachDrill(@Body() body: { targetApp?: EnclaveAppId; attackerIp?: string }) {
     const result = await this.breachResponse.handleBreachEvent({
@@ -92,12 +99,13 @@ export class BreachResponseController {
    * Manually deploys the slowloris tarpit countermeasure against an attacking IP.
    */
   @Post('tarpit')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   engageTarpit(@Body() body: { ip: string }) {
     this.breachResponse.engageTarpit(body.ip);
     return {
       success: true,
-      message: `Tarpit countermeasure actively throttling IP ${body.ip}. Attacker socket held at 1 byte/2s.`,
+      message: `Requests from ${body.ip} are now slowed down (about 1.5 seconds each).`,
     };
   }
 
@@ -105,6 +113,7 @@ export class BreachResponseController {
    * Emergency countermeasure: Purges all master encryption key buffers from memory.
    */
   @Post('crypto-shred')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   shredKeys() {
     return this.dbCrypto.cryptoShred();
@@ -114,6 +123,7 @@ export class BreachResponseController {
    * Restores master encryption keys from authorized administrative credentials.
    */
   @Post('restore-keys')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   restoreKeys(@Body() body: { masterKey: string; version?: string }) {
     return this.dbCrypto.restoreKey(body.masterKey, body.version || 'v1');
@@ -123,6 +133,7 @@ export class BreachResponseController {
    * Resets DEFCON status back to nominal monitoring after threat resolution.
    */
   @Post('reset-defcon')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   resetDefcon() {
     return this.breachResponse.resetDefcon();

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { DbCryptoService } from '../database/db-crypto.service';
@@ -93,6 +93,12 @@ export class AuthService {
    * Handles tenant and admin user creation under isolated contexts.
    */
   async register(dto: RegisterDto) {
+    // Every registration creates a tenant admin, so after the first account
+    // registration is closed unless CYPEE_ALLOW_REGISTRATION=true.
+    if (process.env.CYPEE_ALLOW_REGISTRATION !== 'true' && (await this.prisma.user.count()) > 0) {
+      throw new ForbiddenException('Registration is closed. Ask an owner of this CyPee to add you.');
+    }
+
     const existing = await this.prisma.user.findFirst({
       where: { email: dto.email },
     });
