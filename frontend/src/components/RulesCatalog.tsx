@@ -1,144 +1,336 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Laptop, Smartphone, Globe, Code } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  ShieldCheck,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  Lock,
+  Layers,
+  FileSpreadsheet,
+  Server,
+  Cpu,
+  Globe,
+  Radio,
+} from 'lucide-react';
 
-interface IRuleInfo {
-  ruleId: string;
+interface SecurityLogic {
+  logicId: string;
   title: string;
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  platform: 'Web' | 'Mobile' | 'Source Code' | 'Desktop';
-  owaspMapping: string;
-  description: string;
+  domain: string;
+  cwe: string;
+  mitre: string;
+  enforcementAction: string;
+  triggerCondition: string;
+  mitigation: string;
 }
 
-const ruleList: IRuleInfo[] = [
-  {
-    ruleId: "SQL_INJECTION",
-    title: "Unparameterized Database Queries (SQL Injection)",
-    severity: "CRITICAL",
-    platform: "Web",
-    owaspMapping: "A03:2021-Injection",
-    description: "Concatenating untrusted user input directly into database query strings allows attackers to manipulate SQL command structures, leading to unauthorized data exposure, alterations, or execution of arbitrary administrative operations."
-  },
-  {
-    ruleId: "HARDCODED_SECRETS",
-    title: "Hardcoded Cryptographic Keys or Secrets",
-    severity: "HIGH",
-    platform: "Source Code",
-    owaspMapping: "A02:2021-Cryptographic Failures",
-    description: "Plaintext secrets, credentials, API keys, and private keys committed in version-controlled source files can be harvested by malicious actors to compromise downstream services and enclaves."
-  },
-  {
-    ruleId: "ANDROID_DEBUGGABLE",
-    title: "Application is Configured as Debuggable",
-    severity: "HIGH",
-    platform: "Mobile",
-    owaspMapping: "A05:2021-Security Misconfiguration",
-    description: "Leaving the debuggable flag enabled in production Android/iOS application manifests allows attackers to attach runtime debug tools, inspect active memory space, or inject classes to bypass root detections."
-  },
-  {
-    ruleId: "CSHARP_DESERIALIZATION",
-    title: "Insecure Deserialization in BinaryFormatter",
-    severity: "CRITICAL",
-    platform: "Desktop",
-    owaspMapping: "A08:2021-Software and Data Integrity Failures",
-    description: "Deserializing untrusted data streams using weak binary serializers allows attackers to trigger arbitrary object graph construction, resulting in remote code execution (RCE) on the local host."
-  },
-  {
-    ruleId: "MISSING_SECURITY_HEADERS",
-    title: "Missing HTTP Security Headers",
-    severity: "MEDIUM",
-    platform: "Web",
-    owaspMapping: "A05:2021-Security Misconfiguration",
-    description: "Boots without standard HTTP response headers (Helmet, CORS, HSTS) leave clients vulnerable to clickjacking, cross-site scripting (XSS), and MIME-type sniffing."
-  }
-];
-
 export const RulesCatalog: React.FC = () => {
-  const [filterPlatform, setFilterPlatform] = useState<string>('All');
-  
-  const filteredRules = ruleList.filter(
-    (rule) => filterPlatform === 'All' || rule.platform === filterPlatform
-  );
+  const [logics, setLogics] = useState<SecurityLogic[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(800);
+  const [filteredCount, setFilteredCount] = useState<number>(800);
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(25);
+  const [totalPages, setTotalPages] = useState<number>(32);
+  const [domainFilter, setDomainFilter] = useState<string>('All');
+  const [severityFilter, setSeverityFilter] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const getSeverityStyle = (severity: string) => {
-    switch (severity) {
-      case 'CRITICAL':
-      case 'HIGH':
-        return 'bg-red-500/20 text-red-400 border-red-500/30';
-      case 'MEDIUM':
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      default:
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+  const domains = [
+    'All',
+    'Web & API Exploitation',
+    'Database & Storage Kernel',
+    'The Resident (Identity & Boundary)',
+    'The Gruvs (Workflow & Concurrency)',
+    'Excellency (Financials & Spreadsheets)',
+    'V-Gruvs Host & Hypervisor',
+    'Cryptography & Post-Quantum',
+    'Cloud, Network & Supply Chain',
+  ];
+
+  const fetchLogics = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (domainFilter !== 'All') params.append('domain', domainFilter);
+      if (severityFilter !== 'All') params.append('severity', severityFilter);
+      if (searchQuery.trim()) params.append('search', searchQuery.trim());
+
+      const res = await fetch(`/api/v1/compliance/logics?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogics(data.logics || []);
+        setTotalCount(data.totalCount || 800);
+        setFilteredCount(data.filteredCount || 800);
+        setTotalPages(data.totalPages || 32);
+      }
+    } catch (e) {
+      console.error('Failed to load 800 security logics:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case 'Web': return <Globe size={14} className="text-cyan-400" />;
-      case 'Mobile': return <Smartphone size={14} className="text-purple-400" />;
-      case 'Source Code': return <Code size={14} className="text-indigo-400" />;
-      default: return <Laptop size={14} className="text-emerald-400" />;
+  useEffect(() => {
+    fetchLogics();
+  }, [page, limit, domainFilter, severityFilter]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    fetchLogics();
+  };
+
+  const getDomainIcon = (domain: string) => {
+    if (domain.includes('Web')) return <Globe size={13} className="text-cyan-400" />;
+    if (domain.includes('Database')) return <Database size={13} className="text-emerald-400" />;
+    if (domain.includes('Resident')) return <Lock size={13} className="text-purple-400" />;
+    if (domain.includes('Gruvs')) return <Layers size={13} className="text-indigo-400" />;
+    if (domain.includes('Excellency')) return <FileSpreadsheet size={13} className="text-amber-400" />;
+    if (domain.includes('Host')) return <Server size={13} className="text-red-400" />;
+    if (domain.includes('Cryptography')) return <Cpu size={13} className="text-blue-400" />;
+    return <Radio size={13} className="text-pink-400" />;
+  };
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case 'TARPIT':
+        return 'bg-amber-950/80 text-amber-300 border-amber-800';
+      case 'ENCLAVE_AIRGAP':
+        return 'bg-red-950/80 text-red-300 border-red-800';
+      case 'INFINITE_LABYRINTH':
+        return 'bg-purple-950/80 text-purple-300 border-purple-800';
+      case 'AST_AUTOPATCH':
+        return 'bg-cyan-950/80 text-cyan-300 border-cyan-800';
+      case 'FORENSIC_FREEZE':
+        return 'bg-indigo-950/80 text-indigo-300 border-indigo-800';
+      default:
+        return 'bg-slate-900 text-slate-300 border-slate-700';
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 overflow-y-auto pr-1 h-full max-w-4xl mx-auto">
-      {/* Intro */}
-      <div className="border-b border-slate-800 pb-4 flex justify-between items-center">
+    <div className="flex flex-col gap-5 max-w-6xl mx-auto w-full">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-5">
         <div>
-          <h3 className="text-lg font-bold text-slate-200">Security Rules & Compliance Catalog</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Rules and heuristics mapped to global security compliance standards like OWASP Top 10.
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={22} className="text-cyan-400" />
+            <h2 className="text-lg font-black tracking-tight text-white uppercase">
+              800-Rule Sovereign Security Logics Matrix
+            </h2>
+            <span className="text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold px-2 py-0.5 rounded">
+              {totalCount} Total Logics Enforced
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+            Deterministic defense heuristics protecting V-Gruvs Host and your 3 applications (The Resident, The Gruvs, and Excellency) across 8 specialized security domains.
           </p>
         </div>
-        
-        {/* Filter controls */}
-        <div className="flex gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-850">
-          {['All', 'Web', 'Mobile', 'Source Code', 'Desktop'].map((plat) => (
+
+        {/* 4 Stats Chips */}
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
+            <span className="text-[9px] text-red-400 block uppercase font-bold">Critical</span>
+            <span className="font-bold text-white">240</span>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
+            <span className="text-[9px] text-amber-400 block uppercase font-bold">High</span>
+            <span className="font-bold text-white">320</span>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
+            <span className="text-[9px] text-cyan-400 block uppercase font-bold">Medium</span>
+            <span className="font-bold text-white">180</span>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
+            <span className="text-[9px] text-slate-400 block uppercase font-bold">Low</span>
+            <span className="font-bold text-white">60</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        {/* Search */}
+        <form onSubmit={handleSearchSubmit} className="flex-1 relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search by ID (e.g. WEB-014, RES-205, VGR-512), Title, CWE, or MITRE..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-20 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+          />
+          <button
+            type="submit"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded text-[10px] font-bold font-mono"
+          >
+            Search
+          </button>
+        </form>
+
+        {/* Severity Filter */}
+        <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+          <Filter size={13} className="text-slate-500 ml-1.5" />
+          {['All', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((sev) => (
             <button
-              key={plat}
-              onClick={() => setFilterPlatform(plat)}
-              className={`px-2.5 py-1 text-[10px] font-bold rounded transition-all whitespace-nowrap ${
-                filterPlatform === plat
-                  ? 'bg-slate-800 text-indigo-400 border border-slate-700/60'
-                  : 'text-slate-500 hover:text-slate-350'
+              key={sev}
+              onClick={() => {
+                setSeverityFilter(sev);
+                setPage(1);
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-bold font-mono transition-all ${
+                severityFilter === sev
+                  ? 'bg-slate-800 text-cyan-300 border border-slate-700 shadow'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              {plat}
+              {sev}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Rules List */}
-      <div className="flex flex-col gap-4">
-        {filteredRules.map((rule) => (
-          <div key={rule.ruleId} className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 flex flex-col gap-3 shadow-md shadow-black/10">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-mono text-slate-450 text-[10px] font-bold tracking-wider">{rule.ruleId}</span>
-                <h4 className="text-sm font-bold text-slate-200 mt-0.5">{rule.title}</h4>
-              </div>
-              <div className="flex gap-2">
-                <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${getSeverityStyle(rule.severity)}`}>
-                  {rule.severity}
-                </span>
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-950 border border-slate-850 text-[10px] font-semibold text-slate-400">
-                  {getPlatformIcon(rule.platform)}
-                  {rule.platform}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {rule.description}
-            </p>
-
-            <div className="flex items-center gap-1.5 text-[10px] text-indigo-400 font-semibold mt-1 bg-indigo-500/5 px-2.5 py-1 rounded border border-indigo-500/10 w-fit">
-              <ShieldCheck size={12} /> Mapping: <strong className="font-mono text-slate-200">{rule.owaspMapping}</strong>
-            </div>
-          </div>
+      {/* Domains Horizontal Scroll Chips */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
+        {domains.map((dom) => (
+          <button
+            key={dom}
+            onClick={() => {
+              setDomainFilter(dom);
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              domainFilter === dom
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800 shadow'
+                : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800/80'
+            }`}
+          >
+            {dom !== 'All' && getDomainIcon(dom)}
+            {dom === 'All' ? 'All 8 Domains (800)' : dom}
+          </button>
         ))}
+      </div>
+
+      {/* Results Count and Pagination Bar */}
+      <div className="flex justify-between items-center text-xs text-slate-400 font-mono">
+        <span>
+          Showing <strong>{logics.length}</strong> of <strong>{filteredCount}</strong> security logics (Page {page} of {totalPages})
+        </span>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+            className="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none"
+          >
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+          </select>
+
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1 || loading}
+            className="p-1.5 bg-slate-900 border border-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-40"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || loading}
+            className="p-1.5 bg-slate-900 border border-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-40"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Logics List Table */}
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        {loading ? (
+          <div className="p-12 text-center text-slate-500 text-xs font-mono">
+            Loading security logics catalog...
+          </div>
+        ) : logics.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 text-xs font-mono">
+            No security logics found matching the specified filters.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-800/80">
+            {logics.map((item) => {
+              const isExpanded = expandedId === item.logicId;
+              return (
+                <div key={item.logicId} className="p-4 hover:bg-slate-900/40 transition-all">
+                  <div
+                    onClick={() => setExpandedId(isExpanded ? null : item.logicId)}
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs font-mono font-black text-cyan-400 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 shrink-0">
+                        {item.logicId}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-white block truncate">{item.title}</span>
+                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-mono">
+                          <span className="flex items-center gap-1">{getDomainIcon(item.domain)} {item.domain}</span>
+                          <span className="text-slate-600">|</span>
+                          <span className="text-slate-300">{item.cwe}</span>
+                          <span className="text-slate-600">|</span>
+                          <span className="text-slate-400">{item.mitre}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${getActionBadge(item.enforcementAction)}`}>
+                        {item.enforcementAction}
+                      </span>
+
+                      <span
+                        className={`text-[9px] font-mono font-black px-2 py-0.5 rounded border ${
+                          item.severity === 'CRITICAL'
+                            ? 'bg-red-950/80 text-red-300 border-red-800'
+                            : item.severity === 'HIGH'
+                            ? 'bg-amber-950/80 text-amber-300 border-amber-800'
+                            : item.severity === 'MEDIUM'
+                            ? 'bg-blue-950/80 text-blue-300 border-blue-800'
+                            : 'bg-slate-900 text-slate-400 border-slate-800'
+                        }`}
+                      >
+                        {item.severity}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expanded Detail Panel */}
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-slate-850/80 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Trigger Condition:</span>
+                        <p className="text-slate-300 text-[11px] font-sans">{item.triggerCondition}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Mitigation & Countermeasure:</span>
+                        <p className="text-cyan-300 text-[11px] font-sans">{item.mitigation}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
