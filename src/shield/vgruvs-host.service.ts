@@ -302,6 +302,7 @@ export class VGruvsHostGuardianService {
       actionTaken: 'Rotated HMAC-SHA256 transit key across V-Gruvs and all 3 application enclaves',
       severity: 'INFO',
     });
+    if (this.recentEvents.length > 50) this.recentEvents.length = 50;
 
     await this.auditLog.log('SYSTEM', 'VGRUVS_TRANSIT_KEY_ROTATED', `vgruvs:${this.activeKeyVersion}`, {
       previousKeyVersion: this.previousKeyVersion,

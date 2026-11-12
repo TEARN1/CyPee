@@ -31,6 +31,12 @@ export const RulesCatalog: React.FC = () => {
   const [logics, setLogics] = useState<SecurityLogic[]>([]);
   const [totalCount, setTotalCount] = useState<number>(800);
   const [filteredCount, setFilteredCount] = useState<number>(800);
+  const [severityStats, setSeverityStats] = useState<{ CRITICAL: number; HIGH: number; MEDIUM: number; LOW: number }>({
+    CRITICAL: 0,
+    HIGH: 0,
+    MEDIUM: 0,
+    LOW: 0,
+  });
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(25);
   const [totalPages, setTotalPages] = useState<number>(32);
@@ -70,6 +76,9 @@ export const RulesCatalog: React.FC = () => {
         setTotalCount(data.totalCount || 800);
         setFilteredCount(data.filteredCount || 800);
         setTotalPages(data.totalPages || 32);
+        if (data.severityStats) {
+          setSeverityStats(data.severityStats);
+        }
       }
     } catch (e) {
       console.error('Failed to load 800 security logics:', e);
@@ -139,19 +148,19 @@ export const RulesCatalog: React.FC = () => {
         <div className="flex items-center gap-2 text-xs font-mono">
           <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
             <span className="text-[9px] text-red-400 block uppercase font-bold">Critical</span>
-            <span className="font-bold text-white">240</span>
+            <span className="font-bold text-white">{severityStats.CRITICAL}</span>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
             <span className="text-[9px] text-amber-400 block uppercase font-bold">High</span>
-            <span className="font-bold text-white">320</span>
+            <span className="font-bold text-white">{severityStats.HIGH}</span>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
             <span className="text-[9px] text-cyan-400 block uppercase font-bold">Medium</span>
-            <span className="font-bold text-white">180</span>
+            <span className="font-bold text-white">{severityStats.MEDIUM}</span>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-center">
             <span className="text-[9px] text-slate-400 block uppercase font-bold">Low</span>
-            <span className="font-bold text-white">60</span>
+            <span className="font-bold text-white">{severityStats.LOW}</span>
           </div>
         </div>
       </div>

@@ -100,6 +100,10 @@ export class ShieldService {
   detectBotBehavior(ip: string, now: number): { isBot: boolean; entropy: number } {
     let history = this.ipHistory.get(ip);
     if (!history) {
+      if (this.ipHistory.size >= 5000) {
+        const oldestKey = this.ipHistory.keys().next().value;
+        if (oldestKey !== undefined) this.ipHistory.delete(oldestKey);
+      }
       history = { timestamps: [], paths: [] };
       this.ipHistory.set(ip, history);
     }

@@ -48,6 +48,10 @@ export class InfiniteLabyrinthService {
     // 1. Update or initialize trapped attacker profile
     let session = this.trappedAttackers.get(ip);
     if (!session) {
+      if (this.trappedAttackers.size >= 2000) {
+        const oldestIp = this.trappedAttackers.keys().next().value;
+        if (oldestIp !== undefined) this.trappedAttackers.delete(oldestIp);
+      }
       session = {
         ip,
         firstTrappedAt: new Date().toISOString(),

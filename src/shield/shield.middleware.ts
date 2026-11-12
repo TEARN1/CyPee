@@ -58,8 +58,20 @@ export class ShieldMiddleware implements NestMiddleware {
       }
     }
 
-    // 2. Behavioral Entropy Check (Bot / Brute force detector)
-    const behavior = this.shieldService.detectBotBehavior(ip, now);
+    const isDashboardTelemetry =
+      req.method === 'GET' &&
+      (path.startsWith('/api/v1/shield/combat/stream') ||
+        path.startsWith('/api/v1/compliance/logics') ||
+        path.startsWith('/api/v1/shield/fleet/posture') ||
+        path.startsWith('/api/v1/shield/vgruvs/posture') ||
+        path.startsWith('/api/v1/shield/pqc/posture') ||
+        path.startsWith('/api/v1/shield/mtd/status') ||
+        path.startsWith('/api/v1/labyrinth/telemetry'));
+
+    // 2. Behavioral Entropy Check (Bot / Brute force detector) - skip read-only dashboard telemetry/SSE
+    const behavior = isDashboardTelemetry
+      ? { isBot: false, entropy: 100 }
+      : this.shieldService.detectBotBehavior(ip, now);
     if (behavior.isBot && !powVerified) {
       this.logger.warn(`Predictable bot requests interval detected (Jitter: ${behavior.entropy.toFixed(2)}ms) | IP: ${ip}`);
       res.setHeader('x-shield-challenge', this.shieldService.generateChallenge());

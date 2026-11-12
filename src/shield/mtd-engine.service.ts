@@ -47,15 +47,24 @@ export class MtdEngineService {
   /**
    * Validates if a polymorphic token was generated within the active or immediate previous slot.
    */
+  private safeEqual(a: string, b: string): boolean {
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  }
+
   public validateMtdToken(token: string, appId: string): boolean {
-    if (!token || typeof token !== 'string') return false;
+    if (!token || typeof token !== 'string' || !appId || typeof appId !== 'string') {
+      return false;
+    }
 
     // Check current slot (t) and previous slot (t-1) for clock skew tolerance
     const tokenCurrent = this.deriveMtdToken(appId, 0);
     const tokenPrev = this.deriveMtdToken(appId, -1);
 
-    const matchCurrent = crypto.timingSafeEqual(Buffer.from(token, 'utf8'), Buffer.from(tokenCurrent, 'utf8'));
-    const matchPrev = crypto.timingSafeEqual(Buffer.from(token, 'utf8'), Buffer.from(tokenPrev, 'utf8'));
+    const matchCurrent = this.safeEqual(token, tokenCurrent);
+    const matchPrev = this.safeEqual(token, tokenPrev);
 
     const isValid = matchCurrent || matchPrev;
     if (!isValid) {

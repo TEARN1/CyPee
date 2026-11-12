@@ -34,24 +34,24 @@ export class AstAutoPatchService {
     let explanation = '';
     let cweId = 'CWE-UNKNOWN';
 
-    if (rule.includes('SQL') || rule.includes('INJECTION')) {
+    if (rule.includes('SQL')) {
       cweId = 'CWE-89';
       explanation = 'Replaced string-concatenated raw SQL statement with parameterized SQL binding ($1, $2). Prevents SQL syntax breakout.';
       // Replace raw string concatenations
       patched = code
-        .replace(/`SELECT\s+([^`]+)\s+WHERE\s+([^=]+)=\s*'\s*\$\{([^}]+)\}\s*'`/gi, '`SELECT $1 WHERE $2 = $1`, [$3]')
-        .replace(/"SELECT\s+([^"]+)\s+WHERE\s+([^=]+)=\s*'"\s*\+\s*([a-zA-Z0-9_.]+)\s*\+\s*"'""/gi, '"SELECT $1 WHERE $2 = $1", [$3]')
+        .replace(/`SELECT\s+([^`]+)\s+WHERE\s+([^=]+)=\s*'\s*\$\{([^}]+)\}\s*'`/gi, '`SELECT $1 WHERE $2= $$1`, [$3]')
+        .replace(/"SELECT\s+([^"]+)\s+WHERE\s+([^=]+)=\s*'"\s*\+\s*([a-zA-Z0-9_.]+)\s*\+\s*"'"/gi, '"SELECT $1 WHERE $2= $$1", [$3]')
         .replace(/\$queryRawUnsafe\(([^)]+)\)/g, 'withTenantContext(tenantId, (tx) => tx.$queryRaw`$1`)');
 
       if (patched === code) {
         // Fallback robust transform
-        patched = code.replace(/(\.query\([^,]+)\s*\+\s*([a-zA-Z0-9_.]+)(\))/g, '$1 $1, [$2]$3');
+        patched = code.replace(/(\.query\(["'`][^"'`]+)\s*\+\s*([a-zA-Z0-9_.]+)(\))/g, '$1", [$2]$3');
       }
     } else if (rule.includes('COMMAND') || rule.includes('RCE') || rule.includes('EXEC')) {
       cweId = 'CWE-78';
       explanation = 'Replaced shell-spawning exec() with safe execFile() array arguments and strict path sanitization. Eliminates subshell injection.';
       patched = code
-        .replace(/exec\(\s*["']([^"']+)["']\s*\+\s*([a-zA-Z0-9_.]+)\s*,\s*([^)]+)\)/g, 'execFile("$1", [path.basename($2)], $3)')
+        .replace(/exec\(\s*["']([^"']+)["']\s*\+\s*([a-zA-Z0-9_.]+)\s*,\s*([^;]+)\);/g, 'execFile("$1", [path.basename($2)], $3);')
         .replace(/execSync\(\s*`([^`$]+)\$\{([^}]+)\}`\s*\)/g, 'execFileSync("$1", [path.basename($2)])');
     } else if (rule.includes('SECRET') || rule.includes('HARDCODED')) {
       cweId = 'CWE-798';
@@ -65,7 +65,7 @@ export class AstAutoPatchService {
       explanation = 'Applied prepended single-quote escape to prevent Dynamic Data Exchange (DDE) formula execution in spreadsheet software.';
       patched = code.replace(
         /(cell|val|value):\s*([a-zA-Z0-9_.]+)/g,
-        '$1: typeof $2 === "string" ? $2.replace(/^[=+\\-@]/, "\'$&") : $2',
+        '$1: typeof $2 === "string" ? $2.replace(/^[=+\\-@]/, "\'$$&") : $2',
       );
     } else if (rule.includes('HEADER') || rule.includes('HELMET') || rule.includes('SECURITY_HEADERS')) {
       cweId = 'CWE-693';

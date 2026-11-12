@@ -242,6 +242,10 @@ export class GatewayService {
     const now = Date.now();
     const windowStart = now - 60000;
 
+    if (!this.rateLimitBuckets.has(key) && this.rateLimitBuckets.size >= 5000) {
+      const oldestKey = this.rateLimitBuckets.keys().next().value;
+      if (oldestKey !== undefined) this.rateLimitBuckets.delete(oldestKey);
+    }
     let timestamps = this.rateLimitBuckets.get(key) || [];
     timestamps = timestamps.filter(t => t > windowStart);
     timestamps.push(now);
@@ -424,6 +428,8 @@ export class GatewayService {
       const fetchOptions: RequestInit = {
         method: req.method,
         headers: forwardHeaders,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10000),
       };
 
       if (!['GET', 'HEAD'].includes(req.method.toUpperCase()) && req.body) {
