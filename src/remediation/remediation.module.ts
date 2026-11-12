@@ -2,9 +2,12 @@ import { Module } from '@nestjs/common';
 import { RemediationService } from './remediation.service';
 import { FindingsRepository } from './findings.repository';
 import { AutoFixService } from './auto-fix.service';
+import { AstAutoPatchService } from './ast-autopatch.service';
+import { AstAutoPatchController } from './ast-autopatch.controller';
 
 @Module({
-  providers: [RemediationService, FindingsRepository, AutoFixService],
-  exports: [RemediationService, FindingsRepository, AutoFixService],
+  controllers: [AstAutoPatchController],
+  providers: [RemediationService, FindingsRepository, AutoFixService, AstAutoPatchService],
+  exports: [RemediationService, FindingsRepository, AutoFixService, AstAutoPatchService],
 })
 export class RemediationModule {}

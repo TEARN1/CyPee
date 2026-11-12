@@ -38,13 +38,20 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // Serve static dashboard UI from frontend/dist build directory
-  app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));
+  const frontendDist = path.join(process.cwd(), 'frontend', 'dist');
+  app.use(express.static(frontendDist));
+  app.use((req: any, res: any, next: any) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      return res.sendFile(path.join(frontendDist, 'index.html'));
+    }
+    next();
+  });
 
   const configService = app.get(ConfigService);
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : configService.get<number>('PORT', 3000);
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : configService.get<number>('PORT', 3050);
 
-  await app.listen(port, '127.0.0.1');
-  logger.log(`SAST Ingestion Engine successfully running on: http://localhost:${port}`);
+  await app.listen(port);
+  logger.log(`CyPee Sovereign Enclave successfully running on: http://localhost:${port}`);
   logger.log(`Accepting uploads at POST http://localhost:${port}/api/v1/compliance/upload`);
 }
 bootstrap();

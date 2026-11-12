@@ -8,6 +8,9 @@ import { AuditLogService } from '../audit/audit-log.service';
 import { BreachResponseService } from './breach-response.service';
 import { AttackerReconService } from './attacker-recon.service';
 import { FleetService } from './fleet.service';
+import { VGruvsHostGuardianService } from './vgruvs-host.service';
+import { PqcCryptoService } from './pqc-crypto.service';
+import { MtdEngineService } from './mtd-engine.service';
 
 export interface UpstreamApp {
   id: string;
@@ -39,6 +42,9 @@ export class GatewayService {
     private readonly breachResponse: BreachResponseService,
     private readonly reconService: AttackerReconService,
     private readonly fleetService: FleetService,
+    private readonly vgruvsGuardian: VGruvsHostGuardianService,
+    private readonly pqcService: PqcCryptoService,
+    private readonly mtdService: MtdEngineService,
   ) {
     this.enclaveSecret = this.configService.get<string>('JWT_SECRET', 'shield-super-secret-jwt-key-change-in-production-2025');
 
@@ -205,6 +211,26 @@ export class GatewayService {
       if (p.test(lower)) return { blocked: true, threatCategory: 'SSRF_METADATA_PROBE', vector: p.source };
     }
 
+    // 6. V-Gruvs Host Container Escape & Breakout Probes
+    const containerEscapePatterns = [
+      /\/var\/run\/docker\.sock/i,
+      /\/proc\/(self|1)\/(environ|cmdline|maps|mem)/i,
+      /\/sys\/fs\/cgroup\/.*release_agent/i,
+      /\b(nsenter|unshare|kexec_load|cap_sys_admin)\b/i,
+    ];
+    for (const p of containerEscapePatterns) {
+      if (p.test(lower)) return { blocked: true, threatCategory: 'VGRUVS_CONTAINER_ESCAPE_PROBE', vector: p.source };
+    }
+
+    // 7. Spreadsheet DDE Formula & XML/XXE Injection (Excellency Protection)
+    const ddePatterns = [
+      /[=+\-@]\s*(cmd|powershell|msexe|rundll32)\s*\|/i,
+      /<!entity\s+\w+\s+system/i,
+    ];
+    for (const p of ddePatterns) {
+      if (p.test(lower)) return { blocked: true, threatCategory: 'DDE_OR_XXE_INJECTION', vector: p.source };
+    }
+
     return { blocked: false };
   }
 
@@ -333,7 +359,7 @@ export class GatewayService {
       }
     }
 
-    // Tier 5: Cryptographic Enclave Transit Proof (VG_AUTH_TOKEN)
+    // Tier 5: Cryptographic Enclave Transit Proof (VG_AUTH_TOKEN v1 + v2 with Body-SHA256 & PQC Lattice Hybrid)
     const timestamp = Date.now();
     const nonce = crypto.randomUUID();
     const transitToken = this.generateTransitToken(appId, ip, req.method, timestamp, nonce);
@@ -341,6 +367,32 @@ export class GatewayService {
     const normalizedSubPath = subPath ? (subPath.startsWith('/') ? subPath : `/${subPath}`) : '';
     const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
     const targetUrl = `${app.targetUrl}${normalizedSubPath}${queryString}`;
+
+    const serializedBody =
+      !['GET', 'HEAD'].includes(req.method.toUpperCase()) && req.body
+        ? typeof req.body === 'string'
+          ? req.body
+          : JSON.stringify(req.body)
+        : '';
+    const bodySha256 = crypto.createHash('sha256').update(serializedBody).digest('hex');
+
+    const v2Proof = this.vgruvsGuardian.signTransitPayloadV2({
+      appId,
+      ip,
+      method: req.method,
+      path: normalizedSubPath || '/',
+      bodySha256,
+      timestamp,
+      nonce,
+    });
+
+    const pqcProof = this.pqcService.createHybridQuantumTransitProof(
+      appId,
+      ip,
+      `${req.method}|${normalizedSubPath}|${bodySha256}`,
+    );
+
+    const mtdHeaders = this.mtdService.getPolymorphicHeaders(appId);
 
     const forwardHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(req.headers)) {
@@ -354,9 +406,19 @@ export class GatewayService {
     forwardHeaders['x-cypee-enclave'] = 'VERIFIED_SECURE';
     forwardHeaders['x-cypee-app'] = appId;
     forwardHeaders['x-vg-auth'] = transitToken;
+    forwardHeaders['x-vg-auth-v2'] = v2Proof.signature;
+    forwardHeaders['x-vg-key-version'] = v2Proof.keyVersion;
+    forwardHeaders['x-vg-path'] = normalizedSubPath || '/';
+    forwardHeaders['x-vg-body-sha256'] = bodySha256;
     forwardHeaders['x-vg-timestamp'] = String(timestamp);
     forwardHeaders['x-vg-nonce'] = nonce;
     forwardHeaders['vg_auth_token'] = transitToken;
+
+    // Post-Quantum Cryptography & Polymorphic MTD Headers
+    forwardHeaders['x-cypee-pqc-kem'] = pqcProof.latticePolynomialTag;
+    forwardHeaders['x-cypee-pqc-sig'] = pqcProof.classicalSignature;
+    forwardHeaders['x-cypee-mtd-token'] = mtdHeaders['x-cypee-mtd-token'];
+    forwardHeaders['x-cypee-mtd-slot'] = mtdHeaders['x-cypee-mtd-slot'];
 
     try {
       const fetchOptions: RequestInit = {
@@ -381,8 +443,11 @@ export class GatewayService {
         }
       });
 
-      res.setHeader('x-cypee-shield-version', 'CyPee-Enclave-v11-ZeroTrust');
+      res.setHeader('x-cypee-shield-version', 'CyPee-Enclave-v12-QuantumReady');
       res.setHeader('x-cypee-proxy-time', `${durationMs}ms`);
+      res.setHeader('x-vgruvs-transit-key', v2Proof.keyVersion);
+      res.setHeader('x-cypee-pqc-active', 'NIST-FIPS-203-ML-KEM-768');
+      res.setHeader('x-cypee-mtd-slot', mtdHeaders['x-cypee-mtd-slot']);
 
       const responseBody = await upstreamResponse.arrayBuffer();
       res.send(Buffer.from(responseBody));

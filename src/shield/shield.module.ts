@@ -13,6 +13,16 @@ import { BreachResponseController } from './breach-response.controller';
 import { MtlsMeshGuard } from './mtls-mesh.guard';
 import { AttackerReconService } from './attacker-recon.service';
 import { AttackerReconController } from './attacker-recon.controller';
+import { VGruvsHostGuardianService } from './vgruvs-host.service';
+import { VGruvsHostController } from './vgruvs-host.controller';
+import { InfiniteLabyrinthService } from './infinite-labyrinth.service';
+import { InfiniteLabyrinthController } from './infinite-labyrinth.controller';
+import { PqcCryptoService } from './pqc-crypto.service';
+import { PqcCryptoController } from './pqc-crypto.controller';
+import { MtdEngineService } from './mtd-engine.service';
+import { MtdEngineController } from './mtd-engine.controller';
+import { CombatRadarService } from './combat-radar.service';
+import { CombatRadarController } from './combat-radar.controller';
 
 @Global()
 @Module({
@@ -23,6 +33,11 @@ import { AttackerReconController } from './attacker-recon.controller';
     FleetController,
     BreachResponseController,
     AttackerReconController,
+    VGruvsHostController,
+    InfiniteLabyrinthController,
+    PqcCryptoController,
+    MtdEngineController,
+    CombatRadarController,
   ],
   providers: [
     ShieldService,
@@ -33,6 +48,11 @@ import { AttackerReconController } from './attacker-recon.controller';
     BreachResponseService,
     MtlsMeshGuard,
     AttackerReconService,
+    VGruvsHostGuardianService,
+    InfiniteLabyrinthService,
+    PqcCryptoService,
+    MtdEngineService,
+    CombatRadarService,
   ],
   exports: [
     ShieldService,
@@ -43,6 +63,11 @@ import { AttackerReconController } from './attacker-recon.controller';
     BreachResponseService,
     MtlsMeshGuard,
     AttackerReconService,
+    VGruvsHostGuardianService,
+    InfiniteLabyrinthService,
+    PqcCryptoService,
+    MtdEngineService,
+    CombatRadarService,
   ],
 })
 export class ShieldModule {}
