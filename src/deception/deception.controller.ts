@@ -61,4 +61,30 @@ export class DeceptionController {
       output: 'json',
     };
   }
+
+  /**
+   * Decoy Path 3: Synthetic Robots.txt Honeypot Generator.
+   * Lures crawlers and automated discovery scanners into probing canary URLs.
+   */
+  @Get('deception/robots.txt')
+  getRobotsTxt() {
+    return `User-agent: *\nDisallow: /api/v1/admin/db-backup\nDisallow: /api/v1/config/aws-credentials\nDisallow: /api/v1/internal/k8s-tokens\nDisallow: /api/v1/enclave/vault-dump\n`;
+  }
+
+  /**
+   * Decoy Path 4: Kubernetes Cluster Service Account Tokens.
+   */
+  @Get('internal/k8s-tokens')
+  async k8sTokensTrap(@Req() req: Request, @Headers() headers: Record<string, string>) {
+    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const tenantId = headers['x-tenant-id'] || 'default-dev-tenant-uuid';
+
+    await this.deceptionService.handleDeceptionHit(tenantId, 'DECOY_K8S_TOKENS', ip, headers, '/api/v1/internal/k8s-tokens');
+
+    return {
+      serviceAccount: 'cluster-admin-privileged',
+      token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InB2LWtpZC05OTE4In0.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmNsdXN0ZXItYWRtaW4ifQ.decoy',
+      ca_crt: '-----BEGIN CERTIFICATE-----\nMIICyDCCAbCgAwIBAgIBADANBgkqhkiG9w0BAQsFADAVMRMwEQYDVQQDEwprdWJl\n-----END CERTIFICATE-----',
+    };
+  }
 }

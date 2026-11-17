@@ -31,6 +31,9 @@ export class GatewayService {
   // In-memory sliding window rate-limiter: Map<`${appId}:${ip}`, number[]>
   private readonly rateLimitBuckets = new Map<string, number[]>();
 
+  // In-memory transaction idempotency & concurrency lock vault for The Gruvs & enclaves
+  private readonly idempotencyVault = new Map<string, number>();
+
   // Shared secret for cryptographic transit stamping (VG_AUTH_TOKEN)
   private readonly enclaveSecret: string;
 
@@ -363,15 +366,8 @@ export class GatewayService {
       }
     }
 
-    // Tier 5: Cryptographic Enclave Transit Proof (VG_AUTH_TOKEN v1 + v2 with Body-SHA256 & PQC Lattice Hybrid)
-    const timestamp = Date.now();
-    const nonce = crypto.randomUUID();
-    const transitToken = this.generateTransitToken(appId, ip, req.method, timestamp, nonce);
-
+    // Tier 4.5: Enclave-Specific Guards (The Gruvs Idempotency Mutex & The Resident BOLA Guard)
     const normalizedSubPath = subPath ? (subPath.startsWith('/') ? subPath : `/${subPath}`) : '';
-    const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-    const targetUrl = `${app.targetUrl}${normalizedSubPath}${queryString}`;
-
     const serializedBody =
       !['GET', 'HEAD'].includes(req.method.toUpperCase()) && req.body
         ? typeof req.body === 'string'
@@ -379,6 +375,44 @@ export class GatewayService {
           : JSON.stringify(req.body)
         : '';
     const bodySha256 = crypto.createHash('sha256').update(serializedBody).digest('hex');
+
+    // The Gruvs: Concurrency Lock & Anti-Replay Mutex Vault
+    if (appId.includes('gruvs') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method.toUpperCase())) {
+      const idempotencyKey = `gruvs:${ip}:${req.method}:${normalizedSubPath}:${bodySha256}`;
+      const lastSeen = this.idempotencyVault.get(idempotencyKey);
+      if (lastSeen && (Date.now() - lastSeen) < 2500) {
+        this.logger.warn(`[THE GRUVS MUTEX] Intercepted concurrent double-execution burst on ${normalizedSubPath} from ${ip}`);
+        res.setHeader('Retry-After', '2');
+        res.status(HttpStatus.CONFLICT).json({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'The Gruvs Concurrency Guard: Duplicate transaction payload detected within mutex lease window.',
+        });
+        return;
+      }
+      this.idempotencyVault.set(idempotencyKey, Date.now());
+      if (this.idempotencyVault.size > 5000) {
+        const oldest = this.idempotencyVault.keys().next().value;
+        if (oldest !== undefined) this.idempotencyVault.delete(oldest);
+      }
+    }
+
+    // The Resident: Deterministic BOLA/IDOR Boundary Guard
+    if (appId.includes('resident')) {
+      const queryStr = JSON.stringify(req.query || {});
+      if (/(tenant_?id|account_?id|org_?id)["']?\s*:\s*["']?\.\./i.test(queryStr) || /\/api\/v1\/(users|tenants)\/\.\./i.test(normalizedSubPath)) {
+        this.logger.warn(`[THE RESIDENT IDOR] Blocked tenant boundary traversal probe on ${normalizedSubPath} from IP: ${ip}`);
+        throw new ForbiddenException('The Resident Identity Guard: Unauthorized tenant boundary traversal attempt.');
+      }
+    }
+
+    // Tier 5: Cryptographic Enclave Transit Proof (VG_AUTH_TOKEN v1 + v2 with Body-SHA256 & PQC Lattice Hybrid)
+    const timestamp = Date.now();
+    const nonce = crypto.randomUUID();
+    const transitToken = this.generateTransitToken(appId, ip, req.method, timestamp, nonce);
+
+    const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    const targetUrl = `${app.targetUrl}${normalizedSubPath}${queryString}`;
 
     const v2Proof = this.vgruvsGuardian.signTransitPayloadV2({
       appId,
@@ -449,6 +483,9 @@ export class GatewayService {
         }
       });
 
+      res.setHeader('server', 'CyPee-Hardened-Kernel/3.2 (Quantum-Shielded)');
+      res.setHeader('x-content-type-options', 'nosniff');
+      res.setHeader('x-frame-options', 'DENY');
       res.setHeader('x-cypee-shield-version', 'CyPee-Enclave-v12-QuantumReady');
       res.setHeader('x-cypee-proxy-time', `${durationMs}ms`);
       res.setHeader('x-vgruvs-transit-key', v2Proof.keyVersion);
