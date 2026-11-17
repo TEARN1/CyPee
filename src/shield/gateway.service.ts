@@ -56,16 +56,19 @@ export class GatewayService {
     const residentUrl = this.configService.get<string>('APP1_URL', 'http://127.0.0.1:4001');
     const gruvsUrl = this.configService.get<string>('APP2_URL', 'http://127.0.0.1:4002');
     const excellencyUrl = this.configService.get<string>('APP3_URL', 'http://127.0.0.1:4003');
+    const ivoryParkUrl = this.configService.get<string>('APP4_URL', 'http://127.0.0.1:4004');
 
     this.registerApp('vgruvs', vgruvsUrl, 'V-Gruvs (Host Infrastructure)', 300);
     this.registerApp('the-resident', residentUrl, 'The Resident (Identity & Portal)', 120);
     this.registerApp('the-gruvs', gruvsUrl, 'The Gruvs (Core Operations)', 180);
     this.registerApp('excellency', excellencyUrl, 'Excellency (Financials & Sheets)', 60);
+    this.registerApp('ivory-park', ivoryParkUrl, 'Ivory Park Ex Club (Membership & Venue)', 150);
 
     // Maintain legacy aliases for backwards compatibility
     this.registerApp('app1', residentUrl, 'The Resident (Alias: app1)', 120);
     this.registerApp('app2', gruvsUrl, 'The Gruvs (Alias: app2)', 180);
     this.registerApp('app3', excellencyUrl, 'Excellency (Alias: app3)', 60);
+    this.registerApp('app4', ivoryParkUrl, 'Ivory Park Ex Club (Alias: app4)', 150);
   }
 
   registerApp(id: string, targetUrl: string, name?: string, rateLimitPerMin = 120): UpstreamApp {

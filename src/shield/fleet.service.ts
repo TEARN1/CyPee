@@ -4,7 +4,7 @@ import { PrismaService } from '../database/prisma.service';
 import { FederatedDefenseService } from './federated-defense.service';
 import { AuditLogService } from '../audit/audit-log.service';
 
-export type EnclaveAppId = 'vgruvs' | 'the-resident' | 'the-gruvs' | 'excellency';
+export type EnclaveAppId = 'vgruvs' | 'the-resident' | 'the-gruvs' | 'excellency' | 'ivory-park';
 
 export interface FleetEntityStatus {
   id: string;
@@ -94,6 +94,21 @@ export class FleetService {
       highVulnerabilities: 0,
       lastAttested: new Date().toISOString(),
       activeDefenses: ['DDE/Formula Injection Sanitizer', 'Stream Memory Throttler', 'Type-Strict Schema Coercion', 'XML/XXE Disarm'],
+    });
+
+    this.entities.set('ivory-park', {
+      id: 'ivory-park',
+      name: 'Ivory Park Ex Club (Membership & Venue)',
+      role: 'APPLICATION',
+      url: process.env.APP4_URL || 'http://127.0.0.1:4004',
+      status: 'ONLINE',
+      postureScore: 93,
+      isolationLevel: 'RESTRICTED_SANDBOX',
+      attestationHash: this.computeAttestationHash('ivory-park-runtime-v1'),
+      criticalVulnerabilities: 0,
+      highVulnerabilities: 0,
+      lastAttested: new Date().toISOString(),
+      activeDefenses: ['Dynamic TOTP QR Tokens', 'Anti-Scalping PoW Gate', 'Cashless Balance Vault', 'Geofenced Access Check'],
     });
   }
 
