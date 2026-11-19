@@ -1,6 +1,9 @@
-import { Controller, Get, Post, Body, BadRequestException, HttpStatus, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, BadRequestException, HttpStatus, HttpCode, UseGuards } from '@nestjs/common';
 import { FleetService, FleetEntityStatus } from './fleet.service';
+import { OperatorGuard } from '../auth/guards/operator.guard';
 
+// Fleet-wide controls: operators only (src/auth/guards/operator.guard.ts).
+@UseGuards(OperatorGuard)
 @Controller('api/v1/shield/fleet')
 export class FleetController {
   constructor(private readonly fleetService: FleetService) {}

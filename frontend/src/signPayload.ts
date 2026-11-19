@@ -1,10 +1,22 @@
 /**
- * Browser-side cryptographic utility to sign scan payloads using Ed25519
- * via standard Web Crypto API.
+ * Signs scan payloads with Ed25519 (Web Crypto). The private key is never part
+ * of the page: the person pastes their own key once, and it is kept in this
+ * tab's memory only. A key built into the bundle would let anyone sign.
  */
+let sessionKeyBase64: string | null = null;
+
+function signingKeyBase64(): string {
+  if (!sessionKeyBase64) {
+    const pasted = window.prompt('Paste your Ed25519 private key (PKCS8 PEM or base64). It stays in this tab only.') ?? '';
+    const body = pasted.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, '');
+    if (!body) throw new Error('No signing key: uploads need your Ed25519 private key.');
+    sessionKeyBase64 = body;
+  }
+  return sessionKeyBase64;
+}
+
 export async function signPayload(timestamp: string, bodyStr: string): Promise<string> {
-  // Pre-configured PKCS8 private key base64 matching the PEM inside test-ingestion.js
-  const privateKeyBase64 = "MC4CAQAwBQYDK2VwBCIEIPcujgM1F7YBz8bjNa1++Ne338cY03xOFam0wP0+wPY0";
+  const privateKeyBase64 = signingKeyBase64();
   
   // Convert base64 to ArrayBuffer
   const binaryString = window.atob(privateKeyBase64);

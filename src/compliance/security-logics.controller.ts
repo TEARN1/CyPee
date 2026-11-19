@@ -1,6 +1,8 @@
-import { Controller, Get, Param, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
 import { SecurityLogicsService } from './security-logics.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1/compliance/logics')
 export class SecurityLogicsController {
   constructor(private readonly logicsService: SecurityLogicsService) {}

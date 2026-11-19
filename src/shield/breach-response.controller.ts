@@ -1,9 +1,12 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
 import { BreachResponseService } from './breach-response.service';
 import { DbCryptoService } from '../database/db-crypto.service';
 import { StorageAttestorService } from '../database/storage-attestor.service';
 import { EnclaveAppId } from './fleet.service';
+import { OperatorGuard } from '../auth/guards/operator.guard';
 
+// Fleet-wide controls: operators only (src/auth/guards/operator.guard.ts).
+@UseGuards(OperatorGuard)
 @Controller('api/v1/shield/breach')
 export class BreachResponseController {
   constructor(

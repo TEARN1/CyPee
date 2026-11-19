@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Param, Req, Res, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Req, Res, HttpCode, HttpStatus, NotFoundException, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AttackerReconService } from './attacker-recon.service';
+import { OperatorGuard } from '../auth/guards/operator.guard';
 
 @Controller('api/v1/shield/recon')
 export class AttackerReconController {
@@ -10,6 +11,7 @@ export class AttackerReconController {
    * Retrieves all gathered attacker intelligence dossiers.
    */
   @Get('dossiers')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   getAllDossiers() {
     return {
@@ -22,6 +24,7 @@ export class AttackerReconController {
    * Retrieves full forensic breakdown for a specific attacker dossier.
    */
   @Get('dossiers/:id')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   getDossierById(@Param('id') id: string) {
     const dossier = this.reconService.getDossierById(id);
@@ -54,6 +57,7 @@ export class AttackerReconController {
    * Manual or simulated beacon trigger for testing attribution tracking.
    */
   @Post('beacon/:beaconId/trigger-sim')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   simulateBeaconPing(@Param('beaconId') beaconId: string, @Req() req: Request) {
     const pingIp = req.body?.ip || '198.51.100.222';
@@ -65,6 +69,7 @@ export class AttackerReconController {
    * Exports an evidence-grade forensic incident report for law enforcement or CERT filing.
    */
   @Get('dossiers/:id/export')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   exportDossierReport(@Param('id') id: string) {
     const dossier = this.reconService.getDossierById(id);

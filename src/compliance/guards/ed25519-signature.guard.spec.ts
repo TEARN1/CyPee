@@ -97,7 +97,7 @@ describe('Ed25519SignatureGuard', () => {
       );
 
       await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Authentication Failed: Timestamp replay boundary exceeded.')
+        new UnauthorizedException('Authentication Failed: Timestamp invalid or replay boundary exceeded.')
       );
     });
 

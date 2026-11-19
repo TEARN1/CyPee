@@ -3,10 +3,14 @@ const path = require('path');
 const crypto = require('crypto');
 const http = require('http');
 
-// Pre-configured Ed25519 Private Key PEM matching the backend PEM
-const PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIPcujgM1F7YBz8bjNa1++Ne338cY03xOFam0wP0+wPY0
------END PRIVATE KEY-----`;
+// The signing key comes from your environment, never from this file:
+//   CYPEE_SIGNING_KEY_PEM="$(cat my-ed25519-private.pem)" node <script>
+// The server must hold the matching public key in CLIENT_ED25519_PUBLIC_KEY.
+const PRIVATE_KEY_PEM = process.env.CYPEE_SIGNING_KEY_PEM;
+if (!PRIVATE_KEY_PEM) {
+  console.error('Set CYPEE_SIGNING_KEY_PEM to your Ed25519 private key (PEM).');
+  process.exit(1);
+}
 
 // Regex detection rules
 const RULES = [

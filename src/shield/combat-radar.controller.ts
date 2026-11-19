@@ -1,7 +1,10 @@
-import { Controller, Sse, Get, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Sse, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { CombatRadarService, CombatTelemetryEvent } from './combat-radar.service';
+import { OperatorGuard } from '../auth/guards/operator.guard';
 
+// Fleet-wide controls: operators only (src/auth/guards/operator.guard.ts).
+@UseGuards(OperatorGuard)
 @Controller('api/v1/shield/combat')
 export class CombatRadarController {
   constructor(private readonly combatRadarService: CombatRadarService) {}

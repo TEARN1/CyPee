@@ -35,9 +35,8 @@ MCowBQYDK2VwAyEAQQFS0Qa3bcZaax+xkOxNs9uJQM+RYeykLKL43FdyYlY=
     node: `const crypto = require('crypto');
 const http = require('http');
 
-const PRIVATE_KEY_PEM = \`-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIPcujgM1F7YBz8bjNa1++Ne338cY03xOFam0wP0+wPY0
------END PRIVATE KEY-----\`;
+// Your own Ed25519 private key, from your environment; never paste it into code.
+const PRIVATE_KEY_PEM = process.env.CYPEE_SIGNING_KEY_PEM;
 
 const payload = {
   findings: [{

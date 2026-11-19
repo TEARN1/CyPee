@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Query, Req, UseGuards, HttpStatus, HttpCod
 import { SecurityHardeningService } from './security-hardening.service';
 import { PrismaService } from '../database/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OperatorGuard } from '../auth/guards/operator.guard';
 
 @Controller('api/v1/shield/hardening')
 export class SecurityHardeningController {
@@ -14,6 +15,7 @@ export class SecurityHardeningController {
    * Endpoint to verify timing-safe comparison.
    */
   @Post('compare')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async verifyCompare(@Body() body: { secret1: string; secret2: string }) {
     const match = this.hardeningService.timingSafeCompare(body.secret1, body.secret2);
@@ -61,6 +63,7 @@ export class SecurityHardeningController {
    * Endpoint demonstrating HTTP Parameter Pollution (HPP) flattening.
    */
   @Get('query')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   async parseQuery(@Req() req: any) {
     // req.query might contain arrays if HPP query was sent
@@ -72,6 +75,7 @@ export class SecurityHardeningController {
    * Live database defense & integrity posture audit endpoint.
    */
   @Get('database-posture')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   async getDatabasePosture() {
     const metrics = await this.prisma.getSecurityMetrics();
@@ -121,6 +125,7 @@ export class SecurityHardeningController {
    * Triggers an atomic, non-locking hot backup of the SQLite database.
    */
   @Post('database-backup')
+  @UseGuards(OperatorGuard)
   @HttpCode(HttpStatus.OK)
   async triggerBackup() {
     const backup = await this.prisma.createHotBackup();
