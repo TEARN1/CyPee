@@ -67,6 +67,19 @@ src/
    REDIS_PORT=6379
    ```
 
+### Security settings (set these before going live)
+
+| Variable | What it does |
+| --- | --- |
+| `CYPEE_OWNER_EMAILS` | Comma-separated emails allowed to run system-wide actions: shred or restore keys, quarantine an app, add a proxy target, database backup. With none set, nobody can. |
+| `CYPEE_ALLOW_REGISTRATION` | Registration closes after the first account unless this is `true`. Every registration creates a tenant admin. |
+| `CORS_ORIGINS` | Other sites allowed to call the API. The dashboard is served from CyPee itself and needs none. |
+| `CYPEE_DEMO` | `true` shows the made-up example attack dossiers, marked as examples. |
+
+Sign in on the dashboard to see the protected panels. The canary beacon
+(`GET /api/v1/shield/recon/beacon/:id`), the health check and the app proxy
+(`/api/v1/gateway/:appId`) stay open, as they must.
+
 ### Running the App
 
 - **Development Mode**:

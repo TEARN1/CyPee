@@ -1,9 +1,10 @@
 import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { PqcCryptoService } from './pqc-crypto.service';
-import { OperatorGuard } from '../auth/guards/operator.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-// Fleet-wide controls: operators only (src/auth/guards/operator.guard.ts).
-@UseGuards(OperatorGuard)
+// Fleet-wide controls: owners only (src/auth/guards/owner.guard.ts).
+@UseGuards(JwtAuthGuard, OwnerGuard)
 @Controller('api/v1/shield/pqc')
 export class PqcCryptoController {
   constructor(private readonly pqcService: PqcCryptoService) {}

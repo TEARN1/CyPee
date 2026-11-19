@@ -23,7 +23,7 @@ services:
       # Secrets come from your shell or an .env file next to this one, never from here.
       - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET}
       - API_KEY=${API_KEY:?set API_KEY}
-      - CYPEE_OPERATOR_EMAILS=${CYPEE_OPERATOR_EMAILS:-}
+      - CYPEE_OWNER_EMAILS=${CYPEE_OWNER_EMAILS:-}
       - CLIENT_ED25519_PUBLIC_KEY=${CLIENT_ED25519_PUBLIC_KEY:-}
       # Enclave Route Mappings
       - VGRUVS_URL=http://vgruvs-core:4000

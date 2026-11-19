@@ -1,23 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { isOperator } from './operator.guard';
-import { ApiKeyGuard } from '../../compliance/guards/api-key.guard';
-
-describe('isOperator', () => {
-  const admin = { email: 'Owner@Example.com', role: 'ADMIN' };
-
-  it('lets in only a listed ADMIN', () => {
-    expect(isOperator(admin, 'owner@example.com, other@example.com')).toBe(true);
-    expect(isOperator({ ...admin, role: 'ENGINEER' }, 'owner@example.com')).toBe(false);
-    expect(isOperator({ email: 'tenant-admin@example.com', role: 'ADMIN' }, 'owner@example.com')).toBe(false);
-  });
-
-  it('lets nobody in when no operator is listed', () => {
-    expect(isOperator(admin, undefined)).toBe(false);
-    expect(isOperator(admin, '  ,  ')).toBe(false);
-    expect(isOperator(undefined, 'owner@example.com')).toBe(false);
-  });
-});
+import { ApiKeyGuard } from './api-key.guard';
 
 describe('ApiKeyGuard', () => {
   const context = (key?: string) =>

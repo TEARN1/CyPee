@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Body, BadRequestException, HttpStatus, HttpCode, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { FleetService, FleetEntityStatus } from './fleet.service';
-import { OperatorGuard } from '../auth/guards/operator.guard';
 
-// Fleet-wide controls: operators only (src/auth/guards/operator.guard.ts).
-@UseGuards(OperatorGuard)
 @Controller('api/v1/shield/fleet')
+@UseGuards(JwtAuthGuard)
 export class FleetController {
   constructor(private readonly fleetService: FleetService) {}
 
@@ -14,6 +14,7 @@ export class FleetController {
   }
 
   @Post('quarantine')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   async quarantineEntity(
     @Body() body: { id: string; reason?: string },
@@ -27,6 +28,7 @@ export class FleetController {
   }
 
   @Post('restore')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   async restoreEntity(
     @Body() body: { id: string },

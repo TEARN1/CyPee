@@ -7,9 +7,14 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, { bodyParser: false });
 
-  // Enable CORS with exposed challenge headers for PoW handshakes
+  // The dashboard is served from this same address, so no other site needs
+  // CORS. Extra origins can be listed in CORS_ORIGINS (comma-separated).
+  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: true,
+    origin: corsOrigins.length > 0 ? corsOrigins : false,
     credentials: true,
     exposedHeaders: ['x-shield-challenge', 'x-cypee-shield-version', 'x-cypee-proxy-time'],
   });

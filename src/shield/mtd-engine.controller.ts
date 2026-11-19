@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { MtdEngineService } from './mtd-engine.service';
-import { OperatorGuard } from '../auth/guards/operator.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiKeyGuard } from '../compliance/guards/api-key.guard';
 
 @Controller('api/v1/shield/mtd')
@@ -11,7 +12,7 @@ export class MtdEngineController {
    * Returns live Polymorphic Moving-Target Defense status and rolling countdown.
    */
   @Get('status')
-  @UseGuards(OperatorGuard)
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   getStatus() {
     return this.mtdService.getStatus();
   }
@@ -20,7 +21,7 @@ export class MtdEngineController {
    * Computes polymorphic headers for a given enclave.
    */
   @Post('headers')
-  @UseGuards(OperatorGuard)
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   getHeaders(@Body('appId') appId?: string) {
     return {

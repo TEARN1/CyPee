@@ -1,14 +1,15 @@
 import { Controller, All, Get, Post, Body, Param, Req, Res, HttpStatus, HttpCode, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { Request, Response } from 'express';
 import { GatewayService, UpstreamApp } from './gateway.service';
-import { OperatorGuard } from '../auth/guards/operator.guard';
 
 @Controller('api/v1/gateway')
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
   @Get('status')
-  @UseGuards(OperatorGuard)
+  @UseGuards(JwtAuthGuard)
   async getGatewayStatus(): Promise<{ status: string; protectedAppsCount: number; apps: UpstreamApp[] }> {
     const apps = await this.gatewayService.listApps();
     return {
@@ -18,8 +19,9 @@ export class GatewayController {
     };
   }
 
+  // Adding a target lets the proxy reach that address, so only owners may.
   @Post('register')
-  @UseGuards(OperatorGuard)
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   registerApp(
     @Body() body: { id: string; targetUrl: string; name?: string },

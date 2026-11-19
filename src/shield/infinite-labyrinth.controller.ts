@@ -1,10 +1,11 @@
 import { Controller, All, Get, Req, Query, Body, Headers, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { InfiniteLabyrinthService } from './infinite-labyrinth.service';
-import { OperatorGuard } from '../auth/guards/operator.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-// Fleet-wide controls: operators only (src/auth/guards/operator.guard.ts).
-@UseGuards(OperatorGuard)
+// Fleet-wide controls: owners only (src/auth/guards/owner.guard.ts).
+@UseGuards(JwtAuthGuard, OwnerGuard)
 @Controller('api/v1/labyrinth')
 export class InfiniteLabyrinthController {
   constructor(private readonly labyrinthService: InfiniteLabyrinthService) {}
