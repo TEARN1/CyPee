@@ -4,6 +4,10 @@ import { EphemeralSandboxService } from './ephemeral-sandbox.service';
 import { AdversarialFuzzerService } from './adversarial-fuzzer.service';
 import { ClosedLoopProverService } from './closed-loop-prover.service';
 import { SentinelSealService } from './sentinel-seal.service';
+import { CfgVisualizerService } from './cfg-visualizer.service';
+import { SupplyChainSentryService } from './supply-chain-sentry.service';
+import { MutationProverService } from './mutation-prover.service';
+import { VibeGuardCliService } from './vibe-guard-cli.service';
 
 @Controller('api/v1/sentinel')
 export class SentinelController {
@@ -13,6 +17,10 @@ export class SentinelController {
     private readonly fuzzer: AdversarialFuzzerService,
     private readonly prover: ClosedLoopProverService,
     private readonly sealService: SentinelSealService,
+    private readonly cfgVisualizer: CfgVisualizerService,
+    private readonly supplyChain: SupplyChainSentryService,
+    private readonly mutationProver: MutationProverService,
+    private readonly vibeGuardCli: VibeGuardCliService,
   ) {}
 
   /**
@@ -76,6 +84,51 @@ export class SentinelController {
     },
   ) {
     return this.sealService.generateAttestationSeal(body.code, body.enclave, body.payloadsTested);
+  }
+
+  /**
+   * Control Flow Graph (CFG) Generator
+   */
+  @Post('cfg')
+  @HttpCode(HttpStatus.OK)
+  async generateCfg(@Body() body: { code: string; taintedLines?: number[] }) {
+    return this.cfgVisualizer.generateCfg(body.code, body.taintedLines);
+  }
+
+  /**
+   * Supply-Chain & Dependency Typosquatting / Hallucination Sentry
+   */
+  @Post('supply-chain')
+  @HttpCode(HttpStatus.OK)
+  async auditSupplyChain(@Body() body: { dependencies: Record<string, string>; scripts?: Record<string, string> }) {
+    return this.supplyChain.auditDependencies(body.dependencies, body.scripts);
+  }
+
+  /**
+   * AST Mutation Analysis (Stryker-style robustness scoring)
+   */
+  @Post('mutation')
+  @HttpCode(HttpStatus.OK)
+  async runMutation(@Body() body: { code: string; testInput?: any }) {
+    return this.mutationProver.runMutationAnalysis(body.code, body.testInput);
+  }
+
+  /**
+   * Property-Based Test Synthesis (*.spec.ts generator)
+   */
+  @Post('property-test')
+  @HttpCode(HttpStatus.OK)
+  async generatePropertyTest(@Body() body: { functionName: string; enclave: string }) {
+    return this.vibeGuardCli.generatePropertyTestSuite(body.functionName, body.enclave);
+  }
+
+  /**
+   * Automated Pull Request Review Markdown Generator
+   */
+  @Post('pr-review')
+  @HttpCode(HttpStatus.OK)
+  async generatePrReview(@Body() body: { codeDiff: string; prNumber?: number; branch?: string }) {
+    return this.vibeGuardCli.generatePrReview(body.codeDiff, body.prNumber, body.branch);
   }
 
   /**

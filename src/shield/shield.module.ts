@@ -23,6 +23,10 @@ import { MtdEngineService } from './mtd-engine.service';
 import { MtdEngineController } from './mtd-engine.controller';
 import { CombatRadarService } from './combat-radar.service';
 import { CombatRadarController } from './combat-radar.controller';
+import { GatewayAdvancedService } from './gateway-advanced.service';
+import { PqcAdvancedService } from './pqc-advanced.service';
+import { FleetConsensusService } from './fleet-consensus.service';
+import { FleetConsensusController } from './fleet-consensus.controller';
 
 @Global()
 @Module({
@@ -38,6 +42,7 @@ import { CombatRadarController } from './combat-radar.controller';
     PqcCryptoController,
     MtdEngineController,
     CombatRadarController,
+    FleetConsensusController,
   ],
   providers: [
     ShieldService,
@@ -53,6 +58,9 @@ import { CombatRadarController } from './combat-radar.controller';
     PqcCryptoService,
     MtdEngineService,
     CombatRadarService,
+    GatewayAdvancedService,
+    PqcAdvancedService,
+    FleetConsensusService,
   ],
   exports: [
     ShieldService,
@@ -68,6 +76,9 @@ import { CombatRadarController } from './combat-radar.controller';
     PqcCryptoService,
     MtdEngineService,
     CombatRadarService,
+    GatewayAdvancedService,
+    PqcAdvancedService,
+    FleetConsensusService,
   ],
 })
 export class ShieldModule {}
