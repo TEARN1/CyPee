@@ -10,6 +10,7 @@ import { ScansModule } from './scans/scans.module';
 import { AuthModule } from './auth/auth.module';
 import { ShieldModule } from './shield/shield.module';
 import { DeceptionModule } from './deception/deception.module';
+import { SentinelModule } from './sentinel/sentinel.module';
 import { ShieldMiddleware } from './shield/shield.middleware';
 import { SecurityHeadersMiddleware } from './compliance/middlewares/security-headers.middleware';
 
@@ -45,6 +46,7 @@ import { SecurityHeadersMiddleware } from './compliance/middlewares/security-hea
     ScansModule,
     AuthModule,
     DeceptionModule,
+    SentinelModule,
   ],
 })
 export class AppModule implements NestModule {

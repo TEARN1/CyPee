@@ -13,8 +13,9 @@ import { FederatedMesh } from './components/FederatedMesh';
 import { SystemHealth } from './components/SystemHealth';
 import { FleetMatrix } from './components/FleetMatrix';
 import { WarGameDeck } from './components/WarGameDeck';
+import { HyperSentinelDeck } from './components/HyperSentinelDeck';
 import { signPayload } from './signPayload';
-import { ShieldCheck, Server, AlertCircle, RefreshCw, LayoutDashboard, Code, Trash2, Download, ShieldAlert, Globe, Activity, Radio } from 'lucide-react';
+import { ShieldCheck, Server, AlertCircle, RefreshCw, LayoutDashboard, Code, Trash2, Download, ShieldAlert, Globe, Activity, Radio, Zap } from 'lucide-react';
 
 // Browser-side Proof of Work solver wrapping standard fetch
 async function fetchWithPow(url: string, options: RequestInit): Promise<Response> {
@@ -57,7 +58,7 @@ async function fetchWithPow(url: string, options: RequestInit): Promise<Response
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'api' | 'catalog' | 'hardening' | 'incidents' | 'mesh' | 'health' | 'fleet' | 'wargame'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'api' | 'catalog' | 'hardening' | 'incidents' | 'mesh' | 'health' | 'fleet' | 'wargame' | 'sentinel'>('dashboard');
   const [findings, setFindings] = useState<IFinding[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<IFinding | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -363,6 +364,16 @@ function App() {
           >
             <Radio size={14} className="text-red-400" /> War Game Deck
           </button>
+          <button
+            onClick={() => setActiveTab('sentinel')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'sentinel'
+                ? 'bg-slate-800 text-cyan-400 border border-cyan-500/60 shadow-md shadow-cyan-950/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap size={14} className="text-cyan-400" /> Hyper-Sentinel
+          </button>
         </div>
         
         <div className="flex items-center gap-3">
@@ -426,6 +437,10 @@ function App() {
       ) : activeTab === 'wargame' ? (
         <main className="flex-1 bg-slate-900/30 border border-slate-800/80 rounded-2xl p-6 shadow-lg shadow-black/10">
           <WarGameDeck />
+        </main>
+      ) : activeTab === 'sentinel' ? (
+        <main className="flex-1 bg-slate-900/30 border border-slate-800/80 rounded-2xl p-6 shadow-lg shadow-black/10">
+          <HyperSentinelDeck />
         </main>
       ) : (
         <>
