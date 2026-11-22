@@ -27,6 +27,8 @@ import { GatewayAdvancedService } from './gateway-advanced.service';
 import { PqcAdvancedService } from './pqc-advanced.service';
 import { FleetConsensusService } from './fleet-consensus.service';
 import { FleetConsensusController } from './fleet-consensus.controller';
+import { SovereignVaultService } from './sovereign-vault.service';
+import { SovereignVaultController } from './sovereign-vault.controller';
 
 @Global()
 @Module({
@@ -43,6 +45,7 @@ import { FleetConsensusController } from './fleet-consensus.controller';
     MtdEngineController,
     CombatRadarController,
     FleetConsensusController,
+    SovereignVaultController,
   ],
   providers: [
     ShieldService,
@@ -61,6 +64,7 @@ import { FleetConsensusController } from './fleet-consensus.controller';
     GatewayAdvancedService,
     PqcAdvancedService,
     FleetConsensusService,
+    SovereignVaultService,
   ],
   exports: [
     ShieldService,
@@ -79,6 +83,7 @@ import { FleetConsensusController } from './fleet-consensus.controller';
     GatewayAdvancedService,
     PqcAdvancedService,
     FleetConsensusService,
+    SovereignVaultService,
   ],
 })
 export class ShieldModule {}
