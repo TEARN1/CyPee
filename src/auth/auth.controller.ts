@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus, Ip } from '@nestjs/common';
+import { Public } from './public.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto, VerifyMfaDto } from './dto/login.dto';
@@ -10,6 +11,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Public()
   @ApiOperation({ summary: 'Register a new enterprise tenant and admin user' })
   @ApiResponse({ status: 201, description: 'Tenant and admin user successfully registered.' })
   async register(@Body() dto: RegisterDto) {
@@ -17,6 +19,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login authentication' })
   @ApiResponse({ status: 200, description: 'Authenticated successfully or MFA required.' })

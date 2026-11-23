@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { PrismaService } from '../database/prisma.service';
 
 @Controller('api/v1/health')
@@ -6,6 +7,7 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  @Public()
   @HttpCode(HttpStatus.OK)
   async checkHealth() {
     let dbStatus = 'UP';

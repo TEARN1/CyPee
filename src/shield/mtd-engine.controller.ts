@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { MtdEngineService } from './mtd-engine.service';
 import { OwnerGuard } from '../auth/guards/owner.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -34,6 +35,7 @@ export class MtdEngineController {
    * Validates a polymorphic token for an enclave.
    */
   @Post('validate')
+  @Public()
   @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   validateToken(@Body() body: { token: string; appId: string }) {

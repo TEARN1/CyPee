@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { VGruvsHostGuardianService } from './vgruvs-host.service';
 import { EnclaveAppId } from './fleet.service';
 import { OwnerGuard } from '../auth/guards/owner.guard';
@@ -33,6 +34,7 @@ export class VGruvsHostController {
    * Receives signed runtime heartbeats from the V-Gruvs host connector or app guards.
    */
   @Post('heartbeat')
+  @Public()
   @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   async heartbeat(

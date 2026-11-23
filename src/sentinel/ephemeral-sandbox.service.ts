@@ -32,13 +32,23 @@ export interface SandboxExecutionResult {
   exploitDetails?: string;
 }
 
+/** Whether this server may run submitted code at all. */
+export function codeRunAllowed(): boolean {
+  return process.env.CYPEE_ALLOW_CODE_RUN === 'true';
+}
+
 @Injectable()
 export class EphemeralSandboxService {
   private readonly logger = new Logger(EphemeralSandboxService.name);
 
   /**
-   * Runs candidate code inside an ephemeral, zero-overhead V8 micro-sandbox.
-   * Injects mock security sinks to capture escaped payloads without touching host systems.
+   * Runs candidate code in Node's vm module with mock sinks.
+   *
+   * vm is NOT a security boundary (Node's own documentation): code can reach
+   * the host through any object handed into the context. So this is off
+   * unless the owner sets CYPEE_ALLOW_CODE_RUN=true on a machine that holds
+   * nothing worth stealing. The safe design is a separate, network-less
+   * process or container per run.
    */
   public executeCandidate(
     codeSnippet: string,
@@ -46,6 +56,18 @@ export class EphemeralSandboxService {
     timeoutMs = 1000,
   ): SandboxExecutionResult {
     const executionId = `VM-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    if (!codeRunAllowed()) {
+      return {
+        executionId,
+        success: false,
+        error: 'Running submitted code is switched off on this server (CYPEE_ALLOW_CODE_RUN).',
+        elapsedMs: 0,
+        interceptedSinks: [],
+        timeTravelTrace: [],
+        exploitDetected: false,
+      };
+    }
+    const safeTimeout = Math.min(Math.max(Number(timeoutMs) || 1000, 10), 2000);
     const startTime = performance.now();
     const interceptedSinks: MockSinkExecution[] = [];
     const timeTravelTrace: TimeTravelStep[] = [];
@@ -201,7 +223,8 @@ export class EphemeralSandboxService {
       path: { basename: (p: string) => (p || '').split(/[/\\]/).pop() || '' },
     };
 
-    const context = vm.createContext(sandboxScope);
+    // No eval or new Function inside the context (it does not make vm safe; see above).
+    const context = vm.createContext(sandboxScope, { codeGeneration: { strings: false, wasm: false } });
 
     let exploitDetected = false;
     let exploitCategory: string | undefined;
@@ -214,7 +237,7 @@ export class EphemeralSandboxService {
         : `result = (function() { ${codeSnippet} })();`;
 
       const script = new vm.Script(executableScript, { filename: 'candidate.vm.js' });
-      script.runInContext(context, { timeout: timeoutMs });
+      script.runInContext(context, { timeout: safeTimeout });
 
       // Audit intercepted sinks for confirmed exploits
       const breached = interceptedSinks.find((s) => s.breachConfirmed);

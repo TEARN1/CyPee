@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Param, Req, Res, HttpCode, HttpStatus, NotFoundException, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { createHash } from 'crypto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OwnerGuard } from '../auth/guards/owner.guard';
@@ -42,6 +43,7 @@ export class AttackerReconController {
    * it phones home to this URL, immediately capturing their true unproxied IP and environment!
    */
   @Get('beacon/:beaconId')
+  @Public()
   handleBeaconPingGet(@Param('beaconId') beaconId: string, @Req() req: Request, @Res() res: Response) {
     const pingIp = req.ip || req.socket.remoteAddress || '203.0.113.195';
     const userAgent = req.headers['user-agent'] || 'Unknown Attacker Agent';

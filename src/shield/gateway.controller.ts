@@ -1,4 +1,5 @@
 import { Controller, All, Get, Post, Body, Param, Req, Res, HttpStatus, HttpCode, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OwnerGuard } from '../auth/guards/owner.guard';
 import { Request, Response } from 'express';
@@ -35,6 +36,7 @@ export class GatewayController {
 
   // Catch-all route for the root of the app: /api/v1/gateway/:appId
   @All(':appId')
+  @Public()
   async proxyRoot(
     @Param('appId') appId: string,
     @Req() req: Request,
@@ -45,6 +47,7 @@ export class GatewayController {
 
   // Catch-all route for any subpath: /api/v1/gateway/:appId/*
   @All(':appId/*')
+  @Public()
   async proxySubpath(
     @Param('appId') appId: string,
     @Req() req: Request,
