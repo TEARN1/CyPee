@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadGatewayException, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadGatewayException, ServiceUnavailableException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import * as crypto from 'crypto';
@@ -11,6 +11,7 @@ import { FleetService } from './fleet.service';
 import { VGruvsHostGuardianService } from './vgruvs-host.service';
 import { PqcCryptoService } from './pqc-crypto.service';
 import { MtdEngineService } from './mtd-engine.service';
+import { GatewayAdvancedService } from './gateway-advanced.service';
 
 export interface UpstreamApp {
   id: string;
@@ -48,6 +49,7 @@ export class GatewayService {
     private readonly vgruvsGuardian: VGruvsHostGuardianService,
     private readonly pqcService: PqcCryptoService,
     private readonly mtdService: MtdEngineService,
+    private readonly advancedGateway: GatewayAdvancedService,
   ) {
     this.enclaveSecret = this.configService.get<string>('JWT_SECRET', 'shield-super-secret-jwt-key-change-in-production-2025');
 
@@ -284,6 +286,20 @@ export class GatewayService {
       await new Promise((r) => setTimeout(r, 2000)); // Artificial Slowloris friction
     }
 
+    // Tier 0.5: Intelligent Circuit Breaker & Enclave Security Profile Enforcer
+    const cb = this.advancedGateway.checkCircuitBreaker(appId);
+    if (!cb.allowed) {
+      this.logger.warn(`[CIRCUIT BREAKER OPEN] Shedding inbound request to '${appId}' to prevent cascade failure.`);
+      throw new ServiceUnavailableException(`Circuit Breaker for '${app.name}' is OPEN. Auto-shedding requests.`);
+    }
+
+    const payloadBytes = req.body ? Buffer.byteLength(typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : 0;
+    const profCheck = this.advancedGateway.validateSecurityProfile(appId, req.method, payloadBytes);
+    if (!profCheck.allowed) {
+      this.logger.warn(`[PROFILE VIOLATION] Enclave '${appId}' rejected: ${profCheck.reason}`);
+      throw new ForbiddenException(profCheck.reason);
+    }
+
     // Tier 1: Threat Mesh Instant Quarantine Check
     if (this.federatedDefense.isThreatBlocked(ip)) {
       this.logger.warn(`[ENCLAVE QUARANTINE] IP ${ip} is banned in the Federated Mesh. Dropped before reaching "${appId}".`);
@@ -412,6 +428,12 @@ export class GatewayService {
     // Tier 5: Cryptographic Enclave Transit Proof (VG_AUTH_TOKEN v1 + v2 with Body-SHA256 & PQC Lattice Hybrid)
     const timestamp = Date.now();
     const nonce = crypto.randomUUID();
+
+    if (!this.advancedGateway.verifyDistributedNonce(nonce)) {
+      this.logger.warn(`[REPLAY NONCE DETECTED] Cluster nonce '${nonce}' already consumed.`);
+      throw new ForbiddenException('Cryptographic replay violation: Nonce already consumed across cluster.');
+    }
+
     const transitToken = this.generateTransitToken(appId, ip, req.method, timestamp, nonce);
 
     const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
@@ -461,6 +483,9 @@ export class GatewayService {
     forwardHeaders['x-cypee-mtd-token'] = mtdHeaders['x-cypee-mtd-token'];
     forwardHeaders['x-cypee-mtd-slot'] = mtdHeaders['x-cypee-mtd-slot'];
 
+    const ja4 = this.advancedGateway.computeJa4Fingerprint(req.headers as any);
+    forwardHeaders['x-cypee-ja4'] = ja4.rawFingerprint;
+
     try {
       const fetchOptions: RequestInit = {
         method: req.method,
@@ -479,6 +504,8 @@ export class GatewayService {
       const upstreamResponse = await fetch(targetUrl, fetchOptions);
       const durationMs = (performance.now() - start).toFixed(1);
 
+      this.advancedGateway.recordSuccess(appId);
+
       res.status(upstreamResponse.status);
       upstreamResponse.headers.forEach((val, key) => {
         if (!['content-encoding', 'transfer-encoding'].includes(key.toLowerCase())) {
@@ -494,10 +521,17 @@ export class GatewayService {
       res.setHeader('x-vgruvs-transit-key', v2Proof.keyVersion);
       res.setHeader('x-cypee-pqc-active', 'NIST-FIPS-203-ML-KEM-768');
       res.setHeader('x-cypee-mtd-slot', mtdHeaders['x-cypee-mtd-slot']);
+      res.setHeader('x-cypee-ja4-fingerprint', ja4.rawFingerprint);
 
       const responseBody = await upstreamResponse.arrayBuffer();
-      res.send(Buffer.from(responseBody));
+      const rawText = Buffer.from(responseBody).toString('utf8');
+      const { scrubbed, redactionCount } = this.advancedGateway.scrubEgressPayload(rawText);
+      if (redactionCount > 0) {
+        res.setHeader('x-cypee-dlp-redacted', String(redactionCount));
+      }
+      res.send(Buffer.from(scrubbed, 'utf8'));
     } catch (err: any) {
+      this.advancedGateway.recordFailure(appId);
       this.logger.error(`[UPSTREAM ERROR] Application "${appId}" unreachable at ${targetUrl}: ${err.message}`);
       throw new BadGatewayException(
         `CyPee Security Enclave cannot reach "${app.name}" (${app.targetUrl}). Error: ${err.message}`,

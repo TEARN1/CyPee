@@ -68,6 +68,19 @@ export class AttackerReconController {
   }
 
   /**
+   * Deep Attacker Investigation & Identity Attribution Engine.
+   * Scans all 6 forensic layers to unmask identity, tools, true IP, and physical location.
+   */
+  @Post('investigate')
+  @HttpCode(HttpStatus.OK)
+  async investigateAttacker(@Req() req: Request) {
+    const target = req.body?.target || req.ip || '198.51.100.89';
+    const payload = req.body?.payload || '';
+    const enclave = req.body?.enclave || 'the-resident';
+    return this.reconService.executeDeepInvestigation(target, payload, enclave);
+  }
+
+  /**
    * Exports an evidence-grade forensic incident report for law enforcement or CERT filing.
    */
   @Get('dossiers/:id/export')

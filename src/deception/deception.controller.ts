@@ -1,11 +1,16 @@
-import { Controller, Get, Post, Body, Req, Headers, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, Headers, HttpCode, HttpStatus, UseGuards, Query } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { DeceptionService } from './deception.service';
+import { DeceptionAdvancedService } from './deception-advanced.service';
 
 @Controller('api/v1')
 export class DeceptionController {
-  constructor(private readonly deceptionService: DeceptionService) {}
+  constructor(
+    private readonly deceptionService: DeceptionService,
+    private readonly advancedDeception: DeceptionAdvancedService,
+  ) {}
 
   /**
    * Admin endpoint to create decoy honeytokens. This is a real management
@@ -86,5 +91,58 @@ export class DeceptionController {
       token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InB2LWtpZC05OTE4In0.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmNsdXN0ZXItYWRtaW4ifQ.decoy',
       ca_crt: '-----BEGIN CERTIFICATE-----\nMIICyDCCAbCgAwIBAgIBADANBgkqhkiG9w0BAQsFADAVMRMwEQYDVQQDEwprdWJl\n-----END CERTIFICATE-----',
     };
+  }
+
+  /**
+   * Procedural Reverse Shell Honeypot Execution
+   */
+  @Post('deception/honeypot/shell')
+  @HttpCode(HttpStatus.OK)
+  executeHoneypotShell(
+    @Body() body: { sessionId?: string; command: string },
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const sessId = body.sessionId || `SESSION-${ip.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    return this.advancedDeception.handleHoneypotCommand(sessId, ip, body.command);
+  }
+
+  /**
+   * Canary File Drop Generator
+   */
+  @Get('deception/canary/template')
+  getCanaryTemplate(@Query('type') type: 'AWS_ENV' | 'SSH_KEY' | 'LEDGER_CSV' = 'AWS_ENV') {
+    return this.advancedDeception.generateCanaryFileTemplate(type);
+  }
+
+  /**
+   * Automated Forensic Threat Dossier Generator
+   */
+  @Post('deception/forensics/dossier')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
+  @HttpCode(HttpStatus.OK)
+  generateDossier(
+    @Body() body: { targetIp: string; ja4?: string; payloads?: string[] },
+  ) {
+    return this.advancedDeception.generateForensicDossier(body.targetIp, body.ja4, body.payloads);
+  }
+
+  /**
+   * Synthetic GraphQL Introspection Schema Trap
+   */
+  @Post('graphql')
+  @HttpCode(HttpStatus.OK)
+  graphQlTrap() {
+    return this.advancedDeception.getSyntheticGraphQlSchemaTrap();
+  }
+
+  /**
+   * Autonomous Breach Simulation Drill Run
+   */
+  @Post('deception/drill/run')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
+  @HttpCode(HttpStatus.OK)
+  runBreachDrill() {
+    return this.advancedDeception.runAutonomousBreachDrill();
   }
 }

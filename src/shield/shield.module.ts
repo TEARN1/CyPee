@@ -23,6 +23,12 @@ import { MtdEngineService } from './mtd-engine.service';
 import { MtdEngineController } from './mtd-engine.controller';
 import { CombatRadarService } from './combat-radar.service';
 import { CombatRadarController } from './combat-radar.controller';
+import { GatewayAdvancedService } from './gateway-advanced.service';
+import { PqcAdvancedService } from './pqc-advanced.service';
+import { FleetConsensusService } from './fleet-consensus.service';
+import { FleetConsensusController } from './fleet-consensus.controller';
+import { SovereignVaultService } from './sovereign-vault.service';
+import { SovereignVaultController } from './sovereign-vault.controller';
 
 @Global()
 @Module({
@@ -38,6 +44,8 @@ import { CombatRadarController } from './combat-radar.controller';
     PqcCryptoController,
     MtdEngineController,
     CombatRadarController,
+    FleetConsensusController,
+    SovereignVaultController,
   ],
   providers: [
     ShieldService,
@@ -53,6 +61,10 @@ import { CombatRadarController } from './combat-radar.controller';
     PqcCryptoService,
     MtdEngineService,
     CombatRadarService,
+    GatewayAdvancedService,
+    PqcAdvancedService,
+    FleetConsensusService,
+    SovereignVaultService,
   ],
   exports: [
     ShieldService,
@@ -68,6 +80,10 @@ import { CombatRadarController } from './combat-radar.controller';
     PqcCryptoService,
     MtdEngineService,
     CombatRadarService,
+    GatewayAdvancedService,
+    PqcAdvancedService,
+    FleetConsensusService,
+    SovereignVaultService,
   ],
 })
 export class ShieldModule {}

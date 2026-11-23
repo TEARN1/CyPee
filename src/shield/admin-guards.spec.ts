@@ -12,6 +12,9 @@ import { VGruvsHostController } from './vgruvs-host.controller';
 import { PqcCryptoController } from './pqc-crypto.controller';
 import { MtdEngineController } from './mtd-engine.controller';
 import { ApiKeyGuard } from '../compliance/guards/api-key.guard';
+import { SentinelController } from '../sentinel/sentinel.controller';
+import { SovereignVaultController } from './sovereign-vault.controller';
+import { FleetConsensusController } from './fleet-consensus.controller';
 
 // These actions change or reveal the whole system. They were once open to
 // anyone who could reach CyPee; keep a sign-in, and an owner, in front of them.
@@ -57,6 +60,15 @@ describe('system-wide actions need a signed-in owner', () => {
 
   it.each(SIGNED_IN)('%p.%s needs sign-in', (controller, method) => {
     expect(guardsOf(controller, method)).toContain(JwtAuthGuard);
+  });
+
+  it.each([
+    [SentinelController, 'executeSandbox'],
+    [SentinelController, 'runAdversarialFuzz'],
+    [SovereignVaultController, 'runDisasterDrill'],
+    [FleetConsensusController, 'getPrometheusMetrics'],
+  ] as [Ctor, string][])('%p.%s (runs code or changes the system) needs an owner', (controller, method) => {
+    expect(guardsOf(controller, method)).toEqual(expect.arrayContaining([JwtAuthGuard, OwnerGuard]));
   });
 
   it('host heartbeats and token checks need the API key', () => {

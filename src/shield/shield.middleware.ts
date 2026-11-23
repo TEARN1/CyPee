@@ -66,6 +66,7 @@ export class ShieldMiddleware implements NestMiddleware {
         path.startsWith('/api/v1/shield/vgruvs/posture') ||
         path.startsWith('/api/v1/shield/pqc/posture') ||
         path.startsWith('/api/v1/shield/mtd/status') ||
+        path.startsWith('/api/v1/sentinel/telemetry') ||
         path.startsWith('/api/v1/labyrinth/telemetry'));
 
     // 2. Behavioral Entropy Check (Bot / Brute force detector) - skip read-only dashboard telemetry/SSE
