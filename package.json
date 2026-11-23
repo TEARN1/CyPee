@@ -13,7 +13,8 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest"
+    "test": "jest",
+    "test:http": "jest --testRegex '.*\\.e2e-spec\\.ts$' --runInBand --testTimeout=400000"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -73,10 +74,12 @@
     "@types/node": "^20.12.7",
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.2.1",
     "ioredis": "^5.11.1",
     "ioredis-mock": "^8.13.1",
     "jest": "^30.4.2",
     "prisma": "^7.8.0",
+    "supertest": "^7.3.2",
     "ts-jest": "^29.4.11",
     "typescript": "^5.4.5"
   },

@@ -1,56 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { configureApp } from './app.setup';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, { bodyParser: false });
 
-  // The dashboard is served from this same address, so no other site needs
-  // CORS. Extra origins can be listed in CORS_ORIGINS (comma-separated).
-  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : false,
-    credentials: true,
-    exposedHeaders: ['x-shield-challenge', 'x-cypee-shield-version', 'x-cypee-proxy-time'],
-  });
-
-  // Enable global validations for requests
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-
-  // Capture raw body buffer for secure cryptographic signature validation with strict 1MB payload cap
-  const express = require('express');
-  const path = require('path');
-  
-  app.use(
-    express.json({
-      limit: '1mb',
-      verify: (req: any, res: any, buf: Buffer) => {
-        req.rawBody = buf;
-      },
-    }),
-  );
-  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-
-  // Serve static dashboard UI from frontend/dist build directory
-  const frontendDist = path.join(process.cwd(), 'frontend', 'dist');
-  app.use(express.static(frontendDist));
-  app.use((req: any, res: any, next: any) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api')) {
-      return res.sendFile(path.join(frontendDist, 'index.html'));
-    }
-    next();
-  });
+  configureApp(app);
 
   const configService = app.get(ConfigService);
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : configService.get<number>('PORT', 3050);
