@@ -23,7 +23,7 @@ export function setToken(token: string | null): void {
 /** Wraps fetch once, at start-up, so same-origin /api/ calls carry the token. */
 export function installAuthFetch(): void {
   const original = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+  window.fetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const path = url.startsWith(window.location.origin) ? url.slice(window.location.origin.length) : url;
     const token = getToken();
@@ -32,6 +32,11 @@ export function installAuthFetch(): void {
       if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
       init = { ...init, headers };
     }
-    return original(input, init);
+    const res = await original(input, init);
+    // Tell the screen once when the server refuses: 401 means sign in, 403 means not an owner.
+    if (path.startsWith('/api/') && !path.startsWith('/api/v1/auth/') && (res.status === 401 || res.status === 403)) {
+      window.dispatchEvent(new CustomEvent('cypee:denied', { detail: res.status }));
+    }
+    return res;
   };
 }

@@ -86,7 +86,7 @@ export class SovereignVaultService {
 
   /**
    * 1. Creates an Immutable Cryptographic WORM (Write-Once-Read-Many) Air-Gapped Snapshot.
-   * Signed with Post-Quantum ML-DSA and SHA-3 Merkle Tree guarantees.
+   * Sealed with an HMAC-SHA256 over a SHA-3 Merkle root. Not ML-DSA; no post-quantum signature.
    */
   public createWormSnapshot(dataBuffer: Buffer, retentionDays = 365): WormSnapshot {
     const snapshotId = `WORM-SNAP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -95,8 +95,8 @@ export class SovereignVaultService {
     // Compute SHA-3 / SHA-256 Merkle root
     const merkleRootHash = crypto.createHash('sha256').update(dataBuffer).digest('hex');
 
-    // Simulate Post-Quantum ML-DSA Lattice Signature (FIPS 204)
-    const quantumSignature = `ML-DSA-87_${crypto.createHmac('sha256', this.masterVaultKey).update(`${snapshotId}:${merkleRootHash}:${timestamp}`).digest('hex')}`;
+    // An HMAC seal with the vault key. Not a post-quantum (ML-DSA) signature.
+    const quantumSignature = `HMAC-SHA256_${crypto.createHmac('sha256', this.masterVaultKey).update(`${snapshotId}:${merkleRootHash}:${timestamp}`).digest('hex')}`;
 
     const retentionDate = new Date();
     retentionDate.setDate(retentionDate.getDate() + retentionDays);
@@ -114,7 +114,7 @@ export class SovereignVaultService {
     };
 
     this.wormSnapshots.set(snapshotId, snapshot);
-    this.logger.log(`[SOVEREIGN VAULT] Immutable WORM Snapshot ${snapshotId} sealed with NIST ML-DSA. Retained until ${snapshot.retentionUntil}`);
+    this.logger.log(`[SOVEREIGN VAULT] Immutable WORM Snapshot ${snapshotId} sealed with HMAC-SHA256 (not ML-DSA). Retained until ${snapshot.retentionUntil}`);
     return snapshot;
   }
 

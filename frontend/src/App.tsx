@@ -58,6 +58,27 @@ async function fetchWithPow(url: string, options: RequestInit): Promise<Response
   return response;
 }
 
+/** Says once, plainly, when the server refused a panel: sign in, or owners only. */
+function DeniedNotice() {
+  const [status, setStatus] = useState<number | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => setStatus((e as CustomEvent<number>).detail);
+    window.addEventListener('cypee:denied', on);
+    return () => window.removeEventListener('cypee:denied', on);
+  }, []);
+  if (status === null) return null;
+  return (
+    <div role="status" className="flex items-start justify-between gap-3 mb-4 p-3 rounded-xl border border-amber-700 bg-amber-950/40 text-amber-100 text-sm">
+      <p>
+        {status === 401
+          ? 'Some panels are empty because you are not signed in. Sign in above to see them.'
+          : 'Some panels are for owners only. Your account can see the rest; ask an owner (CYPEE_OWNER_EMAILS) if you need them.'}
+      </p>
+      <button type="button" className="text-amber-200 underline" onClick={() => setStatus(null)} aria-label="Close the access notice">Close</button>
+    </div>
+  );
+}
+
 /** Sign in so the protected panels (fleet, breach, findings) answer. */
 function SignInBar() {
   const [signedIn, setSignedIn] = useState(() => Boolean(getToken()));
@@ -337,6 +358,7 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#080c14] text-slate-100 p-6 font-sans">
+      <DeniedNotice />
       {/* Top Header navbar */}
       <header className="flex justify-between items-center border-b border-slate-800 pb-5 mb-6">
         <div className="flex items-center gap-3">
