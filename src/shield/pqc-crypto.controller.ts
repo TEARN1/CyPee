@@ -26,7 +26,7 @@ export class PqcCryptoController {
     const newKey = this.pqcService.generateLatticeKeyPair();
     return {
       success: true,
-      message: 'New NIST FIPS 203 ML-KEM lattice key pair generated',
+      message: 'New demonstration lattice key pair generated (not ML-KEM)',
       newKey,
     };
   }

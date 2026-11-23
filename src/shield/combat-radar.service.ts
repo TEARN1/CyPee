@@ -48,7 +48,7 @@ export class CombatRadarService {
       eventType: 'PQC_VERIFIED',
       targetEnclave: 'vgruvs',
       attackerIp: '127.0.0.1',
-      vector: 'ML-KEM-768 Lattice Encapsulation',
+      vector: 'Lattice demo encapsulation',
       payloadSnippet: 'Hybrid Ed25519 + Kyber Polynomial Ring Verified',
       mitreCode: 'T1553',
       actionTaken: 'Quantum immunity attested for V-Gruvs Host transit',

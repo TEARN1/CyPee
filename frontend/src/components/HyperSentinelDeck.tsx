@@ -286,7 +286,7 @@ export const HyperSentinelDeck: React.FC = () => {
               <Cpu className="text-cyan-400" size={26} /> CyPee Hyper-Sentinel
             </h2>
             <p className="text-xs text-slate-400 max-w-2xl mt-1">
-              Deterministic AST Taint Flow Tracer, Ephemeral V8 Micro-Sandbox Fuzzer & Post-Quantum Proof-of-Fix Engine. Deeper than traditional text reviewers.
+              Deterministic AST Taint Flow Tracer, Fuzzer (code running is off unless the owner allows it) & Proof-of-Fix Engine.
             </p>
           </div>
 
@@ -299,7 +299,7 @@ export const HyperSentinelDeck: React.FC = () => {
             </div>
             <div className="bg-slate-950/80 border border-slate-800 px-3 py-2 rounded-xl text-right">
               <div className="text-[10px] text-slate-500 font-mono uppercase">Quantum Seal</div>
-              <div className="text-xs font-mono font-bold text-cyan-400">ML-KEM-768</div>
+              <div className="text-xs font-mono font-bold text-cyan-400">Lattice demo</div>
             </div>
           </div>
         </div>

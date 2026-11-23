@@ -143,7 +143,7 @@ export class SentinelController {
     return {
       status: 'ONLINE',
       engine: 'CyPee Hyper-Sentinel Autonomous Verifier v2.0',
-      pqcMode: 'NIST FIPS 203 ML-KEM-768 & FIPS 204 ML-DSA',
+      pqcMode: 'Lattice demonstration (not NIST ML-KEM or ML-DSA)',
       sandboxHarness: 'V8 Ephemeral Micro-Sandbox with Mock Sinks',
       supportedEnclaves: ['the-resident', 'the-gruvs', 'excellency', 'ivory-park', 'vgruvs'],
       activeLogicsCoverage: 800,

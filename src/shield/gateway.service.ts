@@ -519,7 +519,7 @@ export class GatewayService {
       res.setHeader('x-cypee-shield-version', 'CyPee-Enclave-v12-QuantumReady');
       res.setHeader('x-cypee-proxy-time', `${durationMs}ms`);
       res.setHeader('x-vgruvs-transit-key', v2Proof.keyVersion);
-      res.setHeader('x-cypee-pqc-active', 'NIST-FIPS-203-ML-KEM-768');
+      res.setHeader('x-cypee-pqc-active', 'lattice-demo');
       res.setHeader('x-cypee-mtd-slot', mtdHeaders['x-cypee-mtd-slot']);
       res.setHeader('x-cypee-ja4-fingerprint', ja4.rawFingerprint);
 
