@@ -58,9 +58,9 @@ export class AppModule implements NestModule {
     consumer
       // Run AI Shield pre-route validation filters on all endpoints
       .apply(ShieldMiddleware)
-      .forRoutes('*')
+      .forRoutes('{*path}')
       // Apply secondary security headers
       .apply(SecurityHeadersMiddleware)
-      .forRoutes('*');
+      .forRoutes('{*path}');
   }
 }

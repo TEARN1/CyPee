@@ -46,7 +46,7 @@ export class GatewayController {
   }
 
   // Catch-all route for any subpath: /api/v1/gateway/:appId/*
-  @All(':appId/*')
+  @All(':appId/*path')
   @Public()
   async proxySubpath(
     @Param('appId') appId: string,

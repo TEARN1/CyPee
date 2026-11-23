@@ -39,7 +39,7 @@ export class InfiniteLabyrinthController {
   /**
    * Catch-all route for any synthetic database path probed by attackers.
    */
-  @All('db/*')
+  @All('db/*path')
   async proceduralDbCatchAll(
     @Req() req: Request,
     @Query('q') queryParam?: string,

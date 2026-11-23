@@ -18,7 +18,7 @@ const EXPECTED_PUBLIC = [
   "deception/deception.controller.ts @Post('graphql')",
   "shield/attacker-recon.controller.ts @Get('beacon/:beaconId')", // canary beacon
   "shield/gateway.controller.ts @All(':appId')", // the protected apps' own traffic
-  "shield/gateway.controller.ts @All(':appId/*')",
+  "shield/gateway.controller.ts @All(':appId/*path')",
   "shield/mtd-engine.controller.ts @Post('validate')", // API key
   "shield/vgruvs-host.controller.ts @Post('heartbeat')", // API key
 ].sort();
