@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { SAFE_GIT_CONFIG, repoUrlAllowed } from '../common/repo-url';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
@@ -230,7 +231,10 @@ export class ScanOrchestrator {
     await fs.promises.mkdir(workspacePath, { recursive: true });
 
     try {
-      await execFileAsync('git', ['clone', '--depth', '50', '--', repositoryUrl, workspacePath], {
+      if (!repoUrlAllowed(repositoryUrl)) {
+        throw new Error('Repository address not allowed: use an https link on github.com, gitlab.com or bitbucket.org (or a host in CYPEE_ALLOWED_GIT_HOSTS).');
+      }
+      await execFileAsync('git', [...SAFE_GIT_CONFIG, 'clone', '--depth', '50', '--', repositoryUrl, workspacePath], {
         timeout: 3 * 60 * 1000,
         maxBuffer: 20 * 1024 * 1024,
       });

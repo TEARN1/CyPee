@@ -288,6 +288,22 @@ describe('HTTP access (real app, real requests)', () => {
     }
   }, 120_000);
 
+  // Pentest: make yourself an admin of someone else's tenant while registering.
+  it('ignores no extra fields at registration: asking for a role or a tenant is refused', async () => {
+    for (const extra of [{ role: 'ADMIN' }, { tenantId: 'default-dev-tenant-uuid' }, { mfaEnabled: false }]) {
+      const res = await call(app, 'post', '/api/v1/auth/register', { body: { email: `x${Math.random()}@example.test`, password: 'Correct-Horse-9', tenantName: 'X', ...extra } });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  // Pentest: read the server's own files (secrets, database) through the website.
+  it("does not serve the server's own files", async () => {
+    for (const path of ['/../package.json', '/%2e%2e/package.json', '/..%2f.env', '/dev.db', '/.env', '/prisma/schema.prisma']) {
+      const res = await call(app, 'get', path);
+      expect(`${path}: ${res.text ?? ''}`).not.toMatch(/"dependencies"|JWT_SECRET|SQLite format|datasource db/);
+    }
+  });
+
   it('sends security headers', async () => {
     const res = await call(app, 'get', '/api/v1/health');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
