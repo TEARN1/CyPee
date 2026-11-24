@@ -304,6 +304,36 @@ describe('HTTP access (real app, real requests)', () => {
     }
   });
 
+  // Pentest: one company reading, fixing or wiping another company's findings and incidents.
+  it("keeps one company's findings and incidents from another", async () => {
+    const { PrismaService } = await import('../database/prisma.service');
+    const prisma = app.get(PrismaService);
+    const ownerTenant = (jwt.decode(ownerToken) as { tenantId: string }).tenantId;
+    const scan = await prisma.scan.create({ data: { tenantId: ownerTenant } });
+    const finding = await prisma.finding.create({ data: { scanId: scan.id, tenantId: ownerTenant, module: 'SECRET_EXCAVATOR', severity: 'CRITICAL', title: 'Owner secret', description: 'x' } });
+    const incident = await prisma.incident.create({ data: { tenantId: ownerTenant, type: 'TEST', severity: 'HIGH' } });
+
+    const list = await call(app, 'get', '/api/v1/compliance/findings', { token: memberToken });
+    expect(JSON.stringify(list.body)).not.toContain(finding.id);
+    const fix = await call(app, 'post', `/api/v1/compliance/findings/${finding.id}/fix`, { token: memberToken });
+    expect(JSON.stringify(fix.body)).not.toMatch(/"success":true/);
+    const incidents = await call(app, 'get', '/api/v1/compliance/incidents', { token: memberToken });
+    expect(JSON.stringify(incidents.body)).not.toContain(incident.id);
+    const forensics = await call(app, 'get', `/api/v1/compliance/incidents/${incident.id}/forensics`, { token: memberToken });
+    expect([403, 404]).toContain(forensics.status);
+    await call(app, 'post', '/api/v1/compliance/findings/clear', { token: memberToken });
+    expect(await prisma.finding.count({ where: { id: finding.id } })).toBe(1); // the member's "clear" did not touch the owner's
+  });
+
+  // Pentest: a stolen token must stop working when its owner signs out.
+  it('a token stops working at logout', async () => {
+    const res = await call(app, 'post', '/api/v1/auth/login', { body: { email: 'member@example.test', password: 'Correct-Horse-9' } });
+    const token = res.body.token ?? res.body.accessToken;
+    expect((await call(app, 'get', '/api/v1/compliance/findings', { token })).status).toBe(200);
+    await call(app, 'post', '/api/v1/auth/logout', { token });
+    expect((await call(app, 'get', '/api/v1/compliance/findings', { token })).status).toBe(401);
+  });
+
   it('sends security headers', async () => {
     const res = await call(app, 'get', '/api/v1/health');
     expect(res.headers['x-content-type-options']).toBe('nosniff');

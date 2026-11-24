@@ -21,11 +21,14 @@ export class DbCryptoService {
   }
 
   private initializeKeys() {
-    const rawKeyV1 =
-      process.env.DB_ENCRYPTION_KEY ||
-      process.env.ENCRYPTION_KEY ||
-      process.env.JWT_SECRET ||
-      'cypee-hardened-db-encryption-master-salt-2026';
+    // No key written in the code: a default in a public repository decrypts
+    // every copy of the database (penetration test, Nov 2026). Without
+    // DB_ENCRYPTION_KEY the key comes from JWT_SECRET (as before, so existing
+    // data still opens), which the server refuses to start without.
+    const rawKeyV1 = process.env.DB_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY || process.env.JWT_SECRET;
+    if (!rawKeyV1 || rawKeyV1.length < 32 || /replace-with|changeme|placeholder/i.test(rawKeyV1)) {
+      throw new Error('Set DB_ENCRYPTION_KEY (or JWT_SECRET) to at least 32 random characters: openssl rand -hex 32.');
+    }
 
     // Derive strict 32-byte (256-bit) key using SHA-256
     const keyV1 = crypto.createHash('sha256').update(rawKeyV1).digest();
