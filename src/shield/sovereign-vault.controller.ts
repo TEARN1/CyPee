@@ -1,6 +1,10 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { SovereignVaultService } from './sovereign-vault.service';
 
+// Runs submitted code or changes the whole system: owners only (src/auth/guards/owner.guard.ts).
+@UseGuards(JwtAuthGuard, OwnerGuard)
 @Controller('api/v1/shield/vault')
 export class SovereignVaultController {
   constructor(private readonly vaultService: SovereignVaultService) {}

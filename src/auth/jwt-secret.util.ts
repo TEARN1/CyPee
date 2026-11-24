@@ -10,5 +10,10 @@ export function getRequiredJwtSecret(configService: ConfigService): string {
   if (!secret) {
     throw new Error('JWT_SECRET environment variable must be set.');
   }
+  // A short secret can be guessed offline from one captured token, and then
+  // any token can be forged (penetration test, Nov 2026). 32+ characters.
+  if (secret.length < 32 || /^(.)\1+$/.test(secret) || /replace-with|changeme|example|placeholder/i.test(secret)) {
+    throw new Error('JWT_SECRET must be at least 32 random characters (openssl rand -hex 32).');
+  }
   return secret;
 }

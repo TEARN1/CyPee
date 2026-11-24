@@ -1,4 +1,6 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { RequireSignInGuard } from './auth/guards/require-sign-in.guard';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { ComplianceModule } from './compliance/compliance.module';
@@ -48,15 +50,17 @@ import { SecurityHeadersMiddleware } from './compliance/middlewares/security-hea
     DeceptionModule,
     SentinelModule,
   ],
+  // Every route needs a sign-in unless marked @Public() (src/auth/public.decorator.ts).
+  providers: [{ provide: APP_GUARD, useClass: RequireSignInGuard }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       // Run AI Shield pre-route validation filters on all endpoints
       .apply(ShieldMiddleware)
-      .forRoutes('*')
+      .forRoutes('{*path}')
       // Apply secondary security headers
       .apply(SecurityHeadersMiddleware)
-      .forRoutes('*');
+      .forRoutes('{*path}');
   }
 }

@@ -1,7 +1,11 @@
-import { Controller, All, Get, Req, Query, Body, Headers } from '@nestjs/common';
+import { Controller, All, Get, Req, Query, Body, Headers, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { InfiniteLabyrinthService } from './infinite-labyrinth.service';
+import { OwnerGuard } from '../auth/guards/owner.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+// Fleet-wide controls: owners only (src/auth/guards/owner.guard.ts).
+@UseGuards(JwtAuthGuard, OwnerGuard)
 @Controller('api/v1/labyrinth')
 export class InfiniteLabyrinthController {
   constructor(private readonly labyrinthService: InfiniteLabyrinthService) {}
@@ -35,7 +39,7 @@ export class InfiniteLabyrinthController {
   /**
    * Catch-all route for any synthetic database path probed by attackers.
    */
-  @All('db/*')
+  @All('db/*path')
   async proceduralDbCatchAll(
     @Req() req: Request,
     @Query('q') queryParam?: string,

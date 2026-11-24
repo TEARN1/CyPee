@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 
 export interface PqcKeyPair {
   publicKeyId: string;
-  pqcAlgorithm: 'ML-KEM-768' | 'KYBER-LATTICE-HYBRID';
+  pqcAlgorithm: 'LATTICE-DEMO';
   dimensionN: number;
   modulusQ: number;
   publicKeyBytes: string;
@@ -15,7 +15,8 @@ export interface PqcEncapsulationResult {
   ciphertextKem: string;    // Post-quantum ciphertext containing lattice vector samples
   pqcAlgorithm: string;
   latticeNormBound: number;
-  quantumResistant: true;
+  /** Always false: this is a teaching demonstration, not real ML-KEM. */
+  quantumResistant: false;
 }
 
 export interface PqcTransitStamp {
@@ -62,7 +63,7 @@ export class PqcCryptoService {
     const pubPolyHash = crypto.createHash('sha3-256').update(Buffer.concat([seed, Buffer.from(this.secretPoly.buffer)])).digest('hex');
     const keyPair: PqcKeyPair = {
       publicKeyId: `PQC-KEY-KYBER-${pubPolyHash.substring(0, 12).toUpperCase()}`,
-      pqcAlgorithm: 'ML-KEM-768',
+      pqcAlgorithm: 'LATTICE-DEMO',
       dimensionN: this.N,
       modulusQ: this.Q,
       publicKeyBytes: pubPolyHash,
@@ -70,7 +71,7 @@ export class PqcCryptoService {
     };
 
     this.currentKeyPair = keyPair;
-    this.logger.log(`[POST-QUANTUM CRYPTO] Generated NIST FIPS 203 ML-KEM-768 Lattice Key: ${keyPair.publicKeyId}`);
+    this.logger.log(`[LATTICE DEMO] Generated demonstration lattice key (not ML-KEM): ${keyPair.publicKeyId}`);
     return keyPair;
   }
 
@@ -107,9 +108,9 @@ export class PqcCryptoService {
     return {
       sharedSecretHash,
       ciphertextKem: `pqc:kem:${ciphertextKem.substring(0, 48)}`,
-      pqcAlgorithm: 'ML-KEM-768-KYBER',
+      pqcAlgorithm: 'LATTICE-DEMO',
       latticeNormBound: Math.abs(dotProduct),
-      quantumResistant: true,
+      quantumResistant: false,
     };
   }
 
@@ -166,7 +167,8 @@ export class PqcCryptoService {
   public getQuantumPosture() {
     return {
       status: 'QUANTUM_RESISTANT_ACTIVE',
-      algorithmStandards: ['NIST FIPS 203 (ML-KEM / Kyber-768)', 'NIST FIPS 204 (ML-DSA / Dilithium)'],
+      algorithmStandards: [],
+      note: 'A hand-written lattice demonstration. It is not NIST ML-KEM or ML-DSA and gives no post-quantum protection.',
       activeKey: this.currentKeyPair,
       quantumImmunityScore: `${this.quantumImmunityScore}%`,
       totalHybridProofsVerified: this.totalVerifications,

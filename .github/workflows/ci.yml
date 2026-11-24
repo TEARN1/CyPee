@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  # Free minutes are limited: branches are checked by their pull request, main on push.
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npx prisma generate
+      - run: npm run build
+      - name: Unit tests
+        run: npm test
+      - name: HTTP tests (real app, real requests)
+        run: npm run test:http
+      - name: Packages the server ships with have no known vulnerabilities
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: Dashboard
+        working-directory: frontend
+        run: |
+          npm ci --legacy-peer-deps
+          npm test
+          npm run build
+          npm audit --audit-level=moderate

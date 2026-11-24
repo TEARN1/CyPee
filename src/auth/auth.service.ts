@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { DbCryptoService } from '../database/db-crypto.service';
@@ -25,19 +25,42 @@ export class AuthService {
    * Verifies user email/password, checks if MFA is active, and either
    * requests MFA validation or creates the authenticated session.
    */
+  // Wrong passwords or codes per account: after MAX_FAILURES in the window,
+  // sign-in for that account waits until the window passes.
+  private static readonly MAX_FAILURES = 5;
+  private static readonly WINDOW_MS = 15 * 60 * 1000;
+  private readonly failures = new Map<string, number[]>();
+  // Compared against when the account does not exist, so both take as long.
+  private static readonly DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
+  private recentFailures(key: string): number[] {
+    const since = Date.now() - AuthService.WINDOW_MS;
+    const list = (this.failures.get(key) ?? []).filter((t) => t > since);
+    if (list.length) this.failures.set(key, list);
+    else this.failures.delete(key);
+    return list;
+  }
+
+  private fail(key: string, message: string): never {
+    if (this.failures.size > 10_000) this.failures.clear();
+    this.failures.set(key, [...this.recentFailures(key), Date.now()]);
+    throw new UnauthorizedException(message);
+  }
+
   async login(dto: LoginDto, ipAddress?: string, deviceInfo?: string) {
+    const key = dto.email.trim().toLowerCase();
+    if (this.recentFailures(key).length >= AuthService.MAX_FAILURES) {
+      throw new HttpException('Too many failed sign-ins for this account. Try again in 15 minutes.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
     const user = await this.prisma.user.findFirst({
       where: { email: dto.email },
       include: { tenant: true },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid email or password');
+    const isMatch = await bcrypt.compare(dto.password, user?.passwordHash ?? AuthService.DUMMY_HASH);
+    if (!user || !isMatch) {
+      this.fail(key, 'Invalid email or password');
     }
 
     // Check if MFA is enabled
@@ -54,9 +77,11 @@ export class AuthService {
       const secret = user.totpSecret ? this.dbCrypto.decrypt(user.totpSecret) : '';
       const verified = this.totpService.verifyCode(secret, dto.mfaCode);
       if (!verified) {
-        throw new UnauthorizedException('Invalid MFA verification code');
+        this.fail(key, 'Invalid MFA verification code');
       }
     }
+
+    this.failures.delete(key);
 
     // Successful login - generate token
     const session = await this.createSession(user.id, ipAddress, deviceInfo);
@@ -93,6 +118,12 @@ export class AuthService {
    * Handles tenant and admin user creation under isolated contexts.
    */
   async register(dto: RegisterDto) {
+    // Every registration creates a tenant admin, so after the first account
+    // registration is closed unless CYPEE_ALLOW_REGISTRATION=true.
+    if (process.env.CYPEE_ALLOW_REGISTRATION !== 'true' && (await this.prisma.user.count()) > 0) {
+      throw new ForbiddenException('Registration is closed. Ask an owner of this CyPee to add you.');
+    }
+
     const existing = await this.prisma.user.findFirst({
       where: { email: dto.email },
     });

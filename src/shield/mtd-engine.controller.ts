@@ -1,5 +1,9 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { MtdEngineService } from './mtd-engine.service';
+import { OwnerGuard } from '../auth/guards/owner.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiKeyGuard } from '../compliance/guards/api-key.guard';
 
 @Controller('api/v1/shield/mtd')
 export class MtdEngineController {
@@ -9,6 +13,7 @@ export class MtdEngineController {
    * Returns live Polymorphic Moving-Target Defense status and rolling countdown.
    */
   @Get('status')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   getStatus() {
     return this.mtdService.getStatus();
   }
@@ -17,6 +22,7 @@ export class MtdEngineController {
    * Computes polymorphic headers for a given enclave.
    */
   @Post('headers')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   getHeaders(@Body('appId') appId?: string) {
     return {
@@ -29,6 +35,8 @@ export class MtdEngineController {
    * Validates a polymorphic token for an enclave.
    */
   @Post('validate')
+  @Public()
+  @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   validateToken(@Body() body: { token: string; appId: string }) {
     const valid = this.mtdService.validateMtdToken(body.token, body.appId);

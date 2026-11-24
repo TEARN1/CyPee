@@ -2,6 +2,9 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logge
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
+/** Public keys whose private halves were committed to this repository. */
+export const BURNED_PUBLIC_KEYS = ['MCowBQYDK2VwAyEAQQFS0Qa3bcZaax+xkOxNs9uJQM+RYeykLKL43FdyYlY='];
+
 @Injectable()
 export class Ed25519SignatureGuard implements CanActivate {
   private readonly logger = new Logger(Ed25519SignatureGuard.name);
@@ -25,6 +28,12 @@ export class Ed25519SignatureGuard implements CanActivate {
       } catch (error) {
         this.logger.error(`Failed to load Ed25519 public key: ${error.message}`);
         throw error;
+      }
+      // This key's private half was published in the repository and the browser
+      // bundle, so anyone could sign with it. Refuse to run with it.
+      const der = this.clientPublicKey.export({ format: 'der', type: 'spki' }).toString('base64');
+      if (BURNED_PUBLIC_KEYS.includes(der)) {
+        throw new Error('CLIENT_ED25519_PUBLIC_KEY is a published test key: generate a new key pair.');
       }
     }
   }

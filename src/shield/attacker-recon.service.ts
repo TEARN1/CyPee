@@ -7,6 +7,8 @@ import { AuditLogService } from '../audit/audit-log.service';
 
 export interface AttackerDossier {
   dossierId: string;
+  /** True for the made-up demo dossiers. */
+  example?: boolean;
   incidentId: string;
   timestamp: string;
   status: 'ACTIVE_RECON' | 'CONTAINED' | 'EXFILTRATION_BEACON_TRIPPED';
@@ -78,7 +80,10 @@ export class AttackerReconService {
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
   ) {
-    this.seedBaselineDossiers();
+    // The built-in dossiers are made up. They are shown only in demo mode
+    // (CYPEE_DEMO=true) and are marked as examples, so nobody mistakes them
+    // for attacks on The Resident, The Gruvs or Excellency.
+    if (process.env.CYPEE_DEMO === 'true') this.seedBaselineDossiers();
   }
 
   /**
@@ -88,6 +93,7 @@ export class AttackerReconService {
   private seedBaselineDossiers() {
     // Dossier 1: Financial Exfiltration Attack targeting Excellency
     const d1: AttackerDossier = {
+      example: true,
       dossierId: 'DOSSIER-EXCELLENCY-9021',
       incidentId: 'INC-7482-DDE-EXCEL',
       timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
@@ -163,6 +169,7 @@ export class AttackerReconService {
 
     // Dossier 2: BOLA / IDOR Tamper attack targeting The Resident
     const d2: AttackerDossier = {
+      example: true,
       dossierId: 'DOSSIER-RESIDENT-4109',
       incidentId: 'INC-3321-BOLA-RESIDENT',
       timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),

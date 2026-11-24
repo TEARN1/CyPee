@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { SAFE_GIT_CONFIG, repoUrlAllowed } from '../common/repo-url';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -86,7 +87,10 @@ export class AutoFixService {
 
     try {
       try {
-        await execFileAsync('git', ['clone', '--depth', '1', '--', repositoryUrl, workspacePath], {
+        if (!repoUrlAllowed(repositoryUrl)) {
+          throw new Error('Repository address not allowed: use an https link on github.com, gitlab.com or bitbucket.org (or a host in CYPEE_ALLOWED_GIT_HOSTS).');
+        }
+        await execFileAsync('git', [...SAFE_GIT_CONFIG, 'clone', '--depth', '1', '--', repositoryUrl, workspacePath], {
           timeout: 3 * 60 * 1000,
           maxBuffer: 20 * 1024 * 1024,
         });

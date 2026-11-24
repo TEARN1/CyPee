@@ -1,4 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { ComplianceService } from './compliance.service';
 import { UploadReportDto } from './dto/upload-report.dto';
 import { Ed25519SignatureGuard } from './guards/ed25519-signature.guard';
@@ -14,6 +15,7 @@ export class ComplianceController {
    * Offloads parsing to worker threads/background queue.
    */
   @Post('upload')
+  @Public()
   @HttpCode(HttpStatus.ACCEPTED)
   @UsePipes(new ValidationPipe({ 
     transform: true,          // Automatically transform payloads to DTO instances

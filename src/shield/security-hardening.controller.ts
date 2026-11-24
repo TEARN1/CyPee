@@ -2,8 +2,10 @@ import { Controller, Get, Post, Body, Query, Req, UseGuards, HttpStatus, HttpCod
 import { SecurityHardeningService } from './security-hardening.service';
 import { PrismaService } from '../database/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 
 @Controller('api/v1/shield/hardening')
+@UseGuards(JwtAuthGuard)
 export class SecurityHardeningController {
   constructor(
     private readonly hardeningService: SecurityHardeningService,
@@ -121,6 +123,7 @@ export class SecurityHardeningController {
    * Triggers an atomic, non-locking hot backup of the SQLite database.
    */
   @Post('database-backup')
+  @UseGuards(OwnerGuard)
   @HttpCode(HttpStatus.OK)
   async triggerBackup() {
     const backup = await this.prisma.createHotBackup();

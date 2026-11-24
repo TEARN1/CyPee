@@ -1,6 +1,10 @@
-import { Controller, Get, Post, Body, Header, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Header, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { FleetConsensusService } from './fleet-consensus.service';
 
+// Runs submitted code or changes the whole system: owners only (src/auth/guards/owner.guard.ts).
+@UseGuards(JwtAuthGuard, OwnerGuard)
 @Controller('api/v1')
 export class FleetConsensusController {
   constructor(private readonly fleetConsensus: FleetConsensusService) {}

@@ -208,7 +208,7 @@ export function WarGameDeck() {
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Real-time combat telemetry, Post-Quantum Lattice encryption, 60s Polymorphic surface morphing, and procedural attacker traps.
+            Real-time combat telemetry, a lattice encryption demo, 60s Polymorphic surface morphing, and procedural attacker traps.
           </p>
         </div>
 
@@ -269,8 +269,8 @@ export function WarGameDeck() {
             <Cpu size={22} />
           </div>
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-500 font-mono uppercase block font-bold">Post-Quantum Lattice</span>
-            <span className="text-sm font-black text-white truncate block">NIST FIPS 203 ML-KEM-768</span>
+            <span className="text-[10px] text-slate-500 font-mono uppercase block font-bold">Lattice demo (not post-quantum)</span>
+            <span className="text-sm font-black text-white truncate block">Not NIST ML-KEM</span>
             <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-mono mt-0.5">
               <span>● Quantum Immunity: {pqc?.quantumImmunityScore || '99.8%'}</span>
               <span className="text-slate-500">({pqc?.totalHybridProofsVerified || 342} verified)</span>

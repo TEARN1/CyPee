@@ -11,7 +11,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     // In Prisma 7, better-sqlite3 is instantiated automatically via the url property
     const adapter = new PrismaBetterSqlite3({
-      url: 'file:./dev.db',
+      url: process.env.DATABASE_URL || 'file:./dev.db',
     });
 
     super({

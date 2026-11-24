@@ -1,4 +1,6 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { AstTaintAnalyzerService } from './ast-taint-analyzer.service';
 import { EphemeralSandboxService } from './ephemeral-sandbox.service';
 import { AdversarialFuzzerService } from './adversarial-fuzzer.service';
@@ -9,6 +11,8 @@ import { SupplyChainSentryService } from './supply-chain-sentry.service';
 import { MutationProverService } from './mutation-prover.service';
 import { VibeGuardCliService } from './vibe-guard-cli.service';
 
+// Runs submitted code or changes the whole system: owners only (src/auth/guards/owner.guard.ts).
+@UseGuards(JwtAuthGuard, OwnerGuard)
 @Controller('api/v1/sentinel')
 export class SentinelController {
   constructor(
@@ -139,7 +143,7 @@ export class SentinelController {
     return {
       status: 'ONLINE',
       engine: 'CyPee Hyper-Sentinel Autonomous Verifier v2.0',
-      pqcMode: 'NIST FIPS 203 ML-KEM-768 & FIPS 204 ML-DSA',
+      pqcMode: 'Lattice demonstration (not NIST ML-KEM or ML-DSA)',
       sandboxHarness: 'V8 Ephemeral Micro-Sandbox with Mock Sinks',
       supportedEnclaves: ['the-resident', 'the-gruvs', 'excellency', 'ivory-park', 'vgruvs'],
       activeLogicsCoverage: 800,

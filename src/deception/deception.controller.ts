@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, Req, Headers, HttpCode, HttpStatus, UseGuards, Query } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { DeceptionService } from './deception.service';
 import { DeceptionAdvancedService } from './deception-advanced.service';
 
@@ -31,6 +33,7 @@ export class DeceptionController {
    * attacker probing the app, which is what triggers the alert below.
    */
   @Get('admin/db-backup')
+  @Public()
   async databaseBackupTrap(@Req() req: Request, @Headers() headers: Record<string, string>) {
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
     const tenantId = headers['x-tenant-id'] || 'default-dev-tenant-uuid';
@@ -52,6 +55,7 @@ export class DeceptionController {
    * Also deliberately unauthenticated for the same reason as above.
    */
   @Get('config/aws-credentials')
+  @Public()
   async awsCredentialsTrap(@Req() req: Request, @Headers() headers: Record<string, string>) {
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
     const tenantId = headers['x-tenant-id'] || 'default-dev-tenant-uuid';
@@ -71,6 +75,7 @@ export class DeceptionController {
    * Lures crawlers and automated discovery scanners into probing canary URLs.
    */
   @Get('deception/robots.txt')
+  @Public()
   getRobotsTxt() {
     return `User-agent: *\nDisallow: /api/v1/admin/db-backup\nDisallow: /api/v1/config/aws-credentials\nDisallow: /api/v1/internal/k8s-tokens\nDisallow: /api/v1/enclave/vault-dump\n`;
   }
@@ -79,6 +84,7 @@ export class DeceptionController {
    * Decoy Path 4: Kubernetes Cluster Service Account Tokens.
    */
   @Get('internal/k8s-tokens')
+  @Public()
   async k8sTokensTrap(@Req() req: Request, @Headers() headers: Record<string, string>) {
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
     const tenantId = headers['x-tenant-id'] || 'default-dev-tenant-uuid';
@@ -96,6 +102,7 @@ export class DeceptionController {
    * Procedural Reverse Shell Honeypot Execution
    */
   @Post('deception/honeypot/shell')
+  @Public()
   @HttpCode(HttpStatus.OK)
   executeHoneypotShell(
     @Body() body: { sessionId?: string; command: string },
@@ -110,6 +117,7 @@ export class DeceptionController {
    * Canary File Drop Generator
    */
   @Get('deception/canary/template')
+  @Public()
   getCanaryTemplate(@Query('type') type: 'AWS_ENV' | 'SSH_KEY' | 'LEDGER_CSV' = 'AWS_ENV') {
     return this.advancedDeception.generateCanaryFileTemplate(type);
   }
@@ -118,6 +126,7 @@ export class DeceptionController {
    * Automated Forensic Threat Dossier Generator
    */
   @Post('deception/forensics/dossier')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   generateDossier(
     @Body() body: { targetIp: string; ja4?: string; payloads?: string[] },
@@ -129,6 +138,7 @@ export class DeceptionController {
    * Synthetic GraphQL Introspection Schema Trap
    */
   @Post('graphql')
+  @Public()
   @HttpCode(HttpStatus.OK)
   graphQlTrap() {
     return this.advancedDeception.getSyntheticGraphQlSchemaTrap();
@@ -138,6 +148,7 @@ export class DeceptionController {
    * Autonomous Breach Simulation Drill Run
    */
   @Post('deception/drill/run')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   runBreachDrill() {
     return this.advancedDeception.runAutonomousBreachDrill();

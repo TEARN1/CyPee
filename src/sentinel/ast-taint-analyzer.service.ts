@@ -197,7 +197,7 @@ export class AstTaintAnalyzerService {
       taintSafetyScore: safetyScore,
       summary: provenViolations === 0
         ? 'AST Taint Analysis clean: No unparameterized sinks or broken boundaries detected.'
-        : `Detected ${provenViolations} mathematically proven sink breaches across AST data flow.`,
+        : `Detected ${provenViolations} likely sink breaches across AST data flow.`,
     };
   }
 }

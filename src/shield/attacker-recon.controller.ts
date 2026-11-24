@@ -1,4 +1,8 @@
-import { Controller, Get, Post, Param, Req, Res, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Req, Res, HttpCode, HttpStatus, NotFoundException, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
+import { createHash } from 'crypto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OwnerGuard } from '../auth/guards/owner.guard';
 import { Request, Response } from 'express';
 import { AttackerReconService } from './attacker-recon.service';
 
@@ -10,6 +14,7 @@ export class AttackerReconController {
    * Retrieves all gathered attacker intelligence dossiers.
    */
   @Get('dossiers')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   getAllDossiers() {
     return {
@@ -22,6 +27,7 @@ export class AttackerReconController {
    * Retrieves full forensic breakdown for a specific attacker dossier.
    */
   @Get('dossiers/:id')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   getDossierById(@Param('id') id: string) {
     const dossier = this.reconService.getDossierById(id);
@@ -37,6 +43,7 @@ export class AttackerReconController {
    * it phones home to this URL, immediately capturing their true unproxied IP and environment!
    */
   @Get('beacon/:beaconId')
+  @Public()
   handleBeaconPingGet(@Param('beaconId') beaconId: string, @Req() req: Request, @Res() res: Response) {
     const pingIp = req.ip || req.socket.remoteAddress || '203.0.113.195';
     const userAgent = req.headers['user-agent'] || 'Unknown Attacker Agent';
@@ -54,6 +61,7 @@ export class AttackerReconController {
    * Manual or simulated beacon trigger for testing attribution tracking.
    */
   @Post('beacon/:beaconId/trigger-sim')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   simulateBeaconPing(@Param('beaconId') beaconId: string, @Req() req: Request) {
     const pingIp = req.body?.ip || '198.51.100.222';
@@ -78,6 +86,7 @@ export class AttackerReconController {
    * Exports an evidence-grade forensic incident report for law enforcement or CERT filing.
    */
   @Get('dossiers/:id/export')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   exportDossierReport(@Param('id') id: string) {
     const dossier = this.reconService.getDossierById(id);
@@ -88,10 +97,11 @@ export class AttackerReconController {
       classification: 'CONFIDENTIAL // LAW ENFORCEMENT & SOC',
       generatedAt: new Date().toISOString(),
       dossier,
-      chainOfCustody: {
+      // A hash of the dossier, so a copy can be compared with this one. It is
+      // not a digital signature and does not prove who made the report.
+      integrity: {
         hashAlgorithm: 'SHA-256',
-        evidenceSignature: `sig_${Buffer.from(dossier.dossierId).toString('base64')}`,
-        tamperSealed: true,
+        dossierSha256: createHash('sha256').update(JSON.stringify(dossier)).digest('hex'),
       },
     };
   }

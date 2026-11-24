@@ -1,6 +1,10 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { VGruvsHostGuardianService } from './vgruvs-host.service';
 import { EnclaveAppId } from './fleet.service';
+import { OwnerGuard } from '../auth/guards/owner.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiKeyGuard } from '../compliance/guards/api-key.guard';
 
 @Controller('api/v1/shield/vgruvs')
 export class VGruvsHostController {
@@ -11,6 +15,7 @@ export class VGruvsHostController {
    * and the 3 hosted applications (The Resident, The Gruvs, Excellency).
    */
   @Get('posture')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   getPosture() {
     return this.vgruvsGuardian.getHostPosture();
   }
@@ -19,6 +24,7 @@ export class VGruvsHostController {
    * Rotates the shared CyPee <-> V-Gruvs Enclave Transit Secret with zero downtime.
    */
   @Post('rotate-transit-key')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   async rotateTransitKey() {
     return this.vgruvsGuardian.rotateTransitKey();
@@ -28,6 +34,8 @@ export class VGruvsHostController {
    * Receives signed runtime heartbeats from the V-Gruvs host connector or app guards.
    */
   @Post('heartbeat')
+  @Public()
+  @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   async heartbeat(
     @Body()
@@ -46,6 +54,7 @@ export class VGruvsHostController {
    * triggering eBPF/Seccomp containment, enclave airgap quarantine, and Attacker Recon Dossier capture.
    */
   @Post('simulate-escape')
+  @UseGuards(JwtAuthGuard, OwnerGuard)
   @HttpCode(HttpStatus.OK)
   async simulateEscape(
     @Body()

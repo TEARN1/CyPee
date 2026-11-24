@@ -10,8 +10,11 @@ export class ApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const apiKey = request.headers['x-api-key'];
 
-    // Retrieve the authorized API key from configs. Default to a test key for development convenience.
-    const expectedKey = this.configService.get<string>('API_KEY', 'sast-engine-dev-token-98765');
+    // No default: a key printed in the repository would let anyone in. Unset, nobody passes.
+    const expectedKey = this.configService.get<string>('API_KEY') ?? '';
+    if (expectedKey.length < 16) {
+      throw new UnauthorizedException('Access denied. The server has no API key set.');
+    }
 
     if (!apiKey || typeof apiKey !== 'string') {
       throw new UnauthorizedException('Access denied. Invalid or missing X-API-KEY header.');

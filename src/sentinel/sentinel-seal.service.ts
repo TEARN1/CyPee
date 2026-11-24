@@ -57,7 +57,7 @@ export class SentinelSealService {
       enclave,
       payloadsTested,
       timestamp: Date.now(),
-      alg: 'ML-KEM-768-HYBRID',
+      alg: 'LATTICE-DEMO-HYBRID',
     };
 
     const payloadB64 = Buffer.from(JSON.stringify(certificatePayload)).toString('base64url');
@@ -70,7 +70,7 @@ export class SentinelSealService {
       merkleRootHash,
       latticePolynomialTag: pqcProof.latticePolynomialTag,
       classicalSignature: pqcProof.classicalSignature,
-      pqcAlgorithm: 'NIST-FIPS-203-ML-KEM-768',
+      pqcAlgorithm: 'LATTICE-DEMO (not ML-KEM)',
       attestedEnclave: enclave,
       codeLengthBytes: Buffer.byteLength(codeSnippet, 'utf8'),
       testedPayloadsCount: payloadsTested,
@@ -80,7 +80,7 @@ export class SentinelSealService {
     };
 
     this.issuedSeals.set(sealId, cert);
-    this.logger.log(`[HYPER-SENTINEL] Issued Post-Quantum Code Seal "${sealId}" for enclave "${enclave}".`);
+    this.logger.log(`[HYPER-SENTINEL] Issued code seal "${sealId}" for enclave "${enclave}".`);
     return cert;
   }
 

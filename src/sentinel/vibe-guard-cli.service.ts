@@ -97,8 +97,8 @@ describe('${functionName} - Sovereign Property-Based Verification', () => {
         markdown += `- **Remediation:** ${f.remediationAdvice}\n\n`;
       });
     } else {
-      markdown += `> All AST execution paths mathematically proven secure against CyPee 800-Rule Matrix.\n`;
-      markdown += `> Fuzzing iterations completed with 0 exploit breaches. Ready for Post-Quantum Attestation Seal.\n`;
+      markdown += `> No execution path matched a CyPee rule. This is pattern checking, not a proof.\n`;
+      markdown += `> Fuzzing iterations completed with 0 exploit breaches. Ready for a code seal.\n`;
     }
 
     return {

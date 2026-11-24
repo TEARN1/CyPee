@@ -56,6 +56,7 @@ interface BreachStatus {
 
 interface AttackerDossier {
   dossierId: string;
+  example?: boolean;
   incidentId: string;
   timestamp: string;
   status: 'ACTIVE_RECON' | 'CONTAINED' | 'EXFILTRATION_BEACON_TRIPPED';
@@ -398,7 +399,7 @@ export function FleetMatrix() {
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${d.status === 'EXFILTRATION_BEACON_TRIPPED' ? 'bg-amber-400 animate-ping' : 'bg-red-400'}`}></span>
-                {d.dossierId} ({d.entryVector.targetEnclave.toUpperCase()})
+                {d.dossierId} ({d.entryVector.targetEnclave.toUpperCase()}){d.example ? ' · example, not a real attack' : ''}
               </button>
             ))}
           </div>
